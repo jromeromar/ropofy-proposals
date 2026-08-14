@@ -17,6 +17,12 @@ function formatFecha(iso: string): string {
   }
 }
 
+function resumenCondicion(descuentoPct: number | null): string {
+  return descuentoPct != null
+    ? `${descuentoPct}% de descuento`
+    : "sin descuento";
+}
+
 export default async function ConsultorHome() {
   const proposals: StoredProposal[] = await storage.listProposals();
 
@@ -42,19 +48,47 @@ export default async function ConsultorHome() {
       ) : (
         <ul className="list">
           {proposals.map((p) => (
-            <li key={p.id} className="list-item">
-              <div>
+            <li key={p.id} className="list-item-block">
+              <div className="header-row">
                 <div>
-                  <span className="accent-dot" aria-hidden="true" />
-                  <Link href={`/consultor/${p.id}/presentacion`}>
-                    <strong>{p.cliente}</strong>
-                  </Link>
+                  <div>
+                    <span className="accent-dot" aria-hidden="true" />
+                    <Link href={`/consultor/${p.id}/presentacion`}>
+                      <strong>{p.cliente}</strong>
+                    </Link>
+                  </div>
+                  <div className="list-item-meta">
+                    Cargada el {formatFecha(p.createdAt)}
+                  </div>
                 </div>
-                <div className="list-item-meta">
-                  Versión {p.version} · Cargada el {formatFecha(p.createdAt)}
-                </div>
+                <span className="badge">{p.estado}</span>
               </div>
-              <span className="badge">{p.estado}</span>
+
+              {p.sentVersions.length > 0 && (
+                <ul className="versions">
+                  {p.sentVersions.map((v) => (
+                    <li key={v.token} className="version-row">
+                      <div>
+                        <span className="badge badge-enviada">enviada</span>{" "}
+                        <strong>{v.version}</strong>{" "}
+                        <span className="list-item-meta">
+                          · {formatFecha(v.sentAt)} · {v.autor}
+                          {v.aprobador ? ` · aprobó ${v.aprobador}` : ""} ·{" "}
+                          {resumenCondicion(v.condicion.descuentoPct)}
+                        </span>
+                      </div>
+                      <a
+                        className="version-link"
+                        href={`/p/${v.token}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        /p/…{v.token.slice(-6)}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>

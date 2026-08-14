@@ -86,7 +86,7 @@ export default function PresentacionView({ id, vm, initialPlan }: Props) {
       <LosPlanes vm={vm} plan={plan} onSelect={setPlan} precioDe={precioDe} />
       <ElPlano vm={vm} plan={plan} />
       <ADondeLlega vm={vm} plan={plan} />
-      <Cierre id={id} precio={precio} />
+      <Cierre id={id} plan={plan} precio={precio} />
     </div>
   );
 }
@@ -459,11 +459,11 @@ function ADondeLlega({ vm, plan }: { vm: PresentacionVM; plan: Plan }) {
 
 // --- 8. Cierre ----------------------------------------------------------
 
-function Cierre({ id, precio }: { id: string; precio: string }) {
+function Cierre({ id, plan, precio }: { id: string; plan: Plan; precio: string }) {
   return (
     <section className="pv-section pv-cierre">
       <div className="pv-cierre-precio">{precio}</div>
-      <a className="pv-cta" href={`/consultor/${id}/cotizar`}>
+      <a className="pv-cta" href={`/consultor/${id}/cotizar?plan=${plan}`}>
         Preparar propuesta →
       </a>
     </section>

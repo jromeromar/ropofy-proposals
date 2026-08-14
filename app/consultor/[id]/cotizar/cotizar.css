@@ -1,0 +1,127 @@
+/* Quotation panel — consultant only. */
+
+.cot-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+@media (min-width: 820px) {
+  .cot-grid {
+    grid-template-columns: 1.2fr 0.8fr;
+    align-items: start;
+  }
+}
+
+.cot-form input[type="number"],
+.cot-form input[type="text"],
+.cot-form input[type="datetime-local"] {
+  width: 100%;
+  font-size: 15px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+}
+
+.cot-plan-selector {
+  display: flex;
+  gap: 8px;
+}
+.cot-plan-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  cursor: pointer;
+}
+.cot-plan-btn.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.cot-list-price {
+  margin: 10px 0 0;
+}
+
+.cot-approval {
+  border: 1px solid var(--color-warning);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: #fffbeb;
+  padding: 14px 16px;
+}
+.cot-approval-note {
+  margin: 0 0 10px;
+  color: #92400e;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Preview (what the client will see) */
+.cot-preview {
+  position: sticky;
+  top: 24px;
+  border: 1px dashed var(--color-border);
+  border-radius: 14px;
+  padding: 20px;
+  background: var(--color-surface-muted);
+}
+.cot-preview-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.cot-price-block {
+  text-align: center;
+  padding: 16px 0;
+}
+.cot-price-strike {
+  font-size: 18px;
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+  margin-bottom: 6px;
+}
+.cot-price-final {
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--color-primary);
+  line-height: 1.05;
+}
+.cot-price-line {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: 12px;
+}
+
+/* Confirmation */
+.cot-link-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.cot-link {
+  flex: 1;
+  min-width: 240px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-muted);
+  font-size: 13px;
+  word-break: break-all;
+}
+.cot-frozen-note {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: rgba(72, 92, 199, 0.08);
+  color: var(--color-primary-dark);
+  font-size: 14px;
+}

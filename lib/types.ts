@@ -102,6 +102,65 @@ export interface Proposal {
   [key: string]: unknown;
 }
 
+/**
+ * The commercial condition applied at send time, computed and frozen.
+ * `autor` appears to the client (in the condition line); `aprobador` and
+ * `motivo` are audit-only and NEVER reach the client document.
+ */
+export interface AppliedCondition {
+  /** null = no discount exists at all (client never sees the word). */
+  descuentoPct: number | null;
+  /** ISO timestamp; null when there is no discount. */
+  vigencia: string | null;
+  autor: string;
+  aprobador: string | null;
+  moneda: string;
+  /** List price of the selected plan at send time (integer). */
+  precioLista: number;
+  /** Final price of the selected plan after discount (integer). */
+  precioFinal: number;
+  /** Final price per plan after discount (integers). */
+  preciosFinales: { "1": number; "2": number; "3": number };
+  /** Client-facing line, or null when there is no discount. */
+  lineaCondicion: string | null;
+}
+
+/**
+ * The frozen client document snapshot. Built by deep-copying the proposal and
+ * stripping everything the client must never receive. Deliberately typed
+ * loosely (it mirrors a sanitised Proposal plus `condicion_aplicada`); the
+ * forbidden-keys test guards its contents.
+ */
+export interface ClientDocument {
+  cliente: string;
+  condicion_aplicada: {
+    plan_seleccionado: 1 | 2 | 3;
+    descuento_pct: number | null;
+    vigencia: string | null;
+    linea_condicion: string | null;
+    autor: string;
+    moneda: string;
+    precio_lista_seleccionado: number;
+    precio_final_seleccionado: number;
+    preciosFinales: { "1": number; "2": number; "3": number };
+  };
+  [key: string]: unknown;
+}
+
+/** One immutable, sent version of a proposal, addressable by its token. */
+export interface SentVersion {
+  version: string; // "v1", "v2", ...
+  token: string; // url-safe, unguessable
+  sentAt: string; // ISO
+  plan: 1 | 2 | 3;
+  autor: string;
+  aprobador: string | null;
+  /** Internal only — never copied into the client document. */
+  motivo: string | null;
+  condicion: AppliedCondition;
+  clientDocument: ClientDocument;
+}
+
 /** A proposal as persisted by the storage layer. */
 export interface StoredProposal {
   id: string;
@@ -109,7 +168,9 @@ export interface StoredProposal {
   version: string;
   /** ISO-8601 timestamp of when it was loaded. */
   createdAt: string;
-  /** Workflow state. "borrador" for now; will grow later. */
+  /** Workflow state: "borrador" until a version is sent, then "enviada". */
   estado: string;
   data: Proposal;
+  /** Immutable sent versions, oldest first. */
+  sentVersions: SentVersion[];
 }
