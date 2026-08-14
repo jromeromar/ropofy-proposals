@@ -1,0 +1,139 @@
+{
+  "_fixture": "CONTENIDO DE PRUEBA — reemplazar con el propuesta.json real del pipeline. Datos neutrales inventados solo para validar la estructura.",
+  "_contrato": "propuesta v1",
+  "cliente": "Empresa de Ejemplo S.A.",
+  "titular": "Cada oportunidad que entra hoy encuentra a alguien listo para atenderla",
+  "resumen": "Reciben más solicitudes de las que el equipo alcanza a responder a tiempo. Las conversaciones se dispersan entre varios canales y no hay un lugar único donde ver el estado de cada caso. Esta propuesta ordena la entrada, asigna cada solicitud a un responsable y deja visible el avance del día.",
+  "sesiones": ["Sesión de diagnóstico — 2026-08-01"],
+  "modo": "A",
+  "as_is": {
+    "de_donde_llegan": [
+      ["Formulario del sitio", "el canal con más volumen"],
+      ["WhatsApp", "conversaciones directas sin registro"],
+      ["Redes sociales", "mensajes que se pierden entre comentarios"]
+    ],
+    "por_donde_pasan": [
+      ["Recepción", "recibe todo y reparte a mano"],
+      ["Equipo comercial", "atiende según disponibilidad"]
+    ],
+    "donde_queda": [
+      ["Hoja de cálculo", "el registro vive en un archivo compartido"],
+      ["Bandeja de correo", "los acuerdos quedan en hilos sueltos"]
+    ]
+  },
+  "fugas": [
+    {
+      "id": "F-01",
+      "titulo": "El volumen supera la capacidad de respuesta",
+      "estado": "activa",
+      "dominante": true,
+      "cuantificacion": { "valor": "cerca de 300 solicitudes represadas" }
+    },
+    {
+      "id": "F-02",
+      "titulo": "Las conversaciones se dispersan entre canales",
+      "estado": "mitigable",
+      "depende_de_tercero": true,
+      "cuantificacion": { "valor": "3 canales sin consolidar" }
+    },
+    {
+      "id": "F-03",
+      "titulo": "Integración con el sistema contable heredado",
+      "estado": "fuera_de_alcance",
+      "cuantificacion": { "valor": "1 sistema legado" }
+    }
+  ],
+  "madurez": [
+    { "m": "Atracción", "hoy": 2, "por_que": "hay campañas activas pero sin medición de origen", "p": { "1": 3, "2": 3, "3": 4 } },
+    { "m": "Nutrición", "hoy": 1, "por_que": "no hay seguimiento automático a quien no responde", "p": { "1": 2, "2": 3, "3": 4 } },
+    { "m": "Cierre", "hoy": 2, "por_que": "el cierre depende de la memoria de cada asesor", "p": { "1": 3, "2": 4, "3": 4 } },
+    { "m": "Gestión", "hoy": 1, "por_que": "canal único sin ruteo ni responsable asignado", "p": { "1": 3, "2": 4, "3": 4 } },
+    { "m": "Reactivación", "hoy": 0, "por_que": "no existe reactivación de contactos inactivos", "p": { "1": 1, "2": 2, "3": 3 } },
+    { "m": "Fidelización", "hoy": 1, "por_que": "el contacto termina al cerrar la venta", "p": { "1": 2, "2": 3, "3": 3 } },
+    { "m": "Tableros", "hoy": 1, "por_que": "el estado del día no es visible sin pedir un reporte", "p": { "1": 3, "2": 3, "3": 4 } }
+  ],
+  "benchmark": { "sector": 52, "fuente": "Referencia interna de ejemplo" },
+  "nota": { "puntos": 34, "letra": "D" },
+  "componentes": {
+    "comp-ejemplo-ruteo": {
+      "id": "comp-ejemplo-ruteo",
+      "nombre_cliente": "Cada solicitud llega a un responsable, no a una bandeja común",
+      "plan": "fundamental",
+      "tipo": "flujo",
+      "vis": "back",
+      "journey": 120,
+      "instancias": 1,
+      "inst_por": "[unico]",
+      "cuota": null,
+      "aplica_si": "entra por más de un canal"
+    },
+    "comp-ejemplo-tablero": {
+      "id": "comp-ejemplo-tablero",
+      "nombre_cliente": "El equipo abre el día viendo qué atender primero",
+      "plan": "fundamental",
+      "tipo": "tablero",
+      "vis": "front",
+      "journey": 130,
+      "instancias": 2,
+      "inst_por": "equipo",
+      "cuota": "hasta 3",
+      "aplica_si": "hay más de un equipo de atención"
+    },
+    "comp-ejemplo-asistente": {
+      "id": "comp-ejemplo-asistente",
+      "nombre_cliente": "Un asistente responde al instante y ordena la primera conversación",
+      "plan": "avanzado",
+      "tipo": "asistente",
+      "vis": "ambos",
+      "journey": 110,
+      "instancias": 1,
+      "inst_por": "[unico]",
+      "cuota": null,
+      "aplica_si": "el volumen supera la atención humana en horas pico"
+    },
+    "comp-ejemplo-reactivacion": {
+      "id": "comp-ejemplo-reactivacion",
+      "nombre_cliente": "Los contactos que no respondieron reciben un segundo acercamiento",
+      "plan": "inteligente",
+      "tipo": "campaña",
+      "vis": "back",
+      "journey": 210,
+      "instancias": 1,
+      "inst_por": "[unico]",
+      "cuota": null,
+      "aplica_si": "existe una base de contactos inactivos"
+    }
+  },
+  "no_aplican": [
+    ["Catálogo publicado en el sitio", "ya cuentan con un catálogo en línea funcionando"],
+    ["Facturación electrónica", "la gestionan con un proveedor externo que se mantiene"]
+  ],
+  "integraciones": [
+    ["Meta y Google Ads", "cada solicitud llega con su campaña de origen", "incluido"],
+    ["Mensajería de WhatsApp", "el costo por conversación lo define el proveedor", "consumo_variable"],
+    ["Sistema contable actual", "se conserva la licencia vigente del cliente", "licencia_del_cliente"],
+    ["Portal de proveedores", "requiere una conexión a la medida", "desarrollo_a_cotizar"]
+  ],
+  "multiplicador_calculado": {
+    "1": { "piezas": 24, "config": 70 },
+    "2": { "piezas": 45, "config": 130 },
+    "3": { "piezas": 62, "config": 180 }
+  },
+  "condicion_comercial": {
+    "moneda": "USD",
+    "base_por_plan": { "1": 828, "2": 1632, "3": 2574 },
+    "tramos_factor": [[1.3, 1], [1.8, 1.5], [2.4, 2], [3.0, 2.5], [99, 3]],
+    "precio_por_plan": { "1": 2070, "2": 4080, "3": 6435 },
+    "limite_descuento_sin_aprobacion": 0.3,
+    "desglose_interno": "referencia interna para el panel del consultor"
+  },
+  "plan_recomendado": {
+    "plan": 2,
+    "por_que": "la fuga dominante (volumen de entrada) se resuelve con el asistente y el ruteo del plan Avanzado; el plan Inteligente se muestra como camino, no como requisito de arranque"
+  },
+  "advertencias": [
+    "Los tiempos de arranque asumen que el equipo asigna un responsable interno del proyecto.",
+    "El copy visible al cliente nunca expone ids internos, cifras de trabajo interno ni la fórmula de precio."
+  ],
+  "datos_que_faltan": []
+}

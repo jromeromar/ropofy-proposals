@@ -1,0 +1,272 @@
+/* ==========================================================================
+   Ropofy — lenguaje visual
+   Estilo editorial sobrio, mucho aire, tipografía de sistema.
+   Nada de estética de dashboard.
+   ========================================================================== */
+
+:root {
+  /* Paleta */
+  --color-bg: #ffffff;
+  --color-primary: #485cc7; /* morado principal */
+  --color-primary-dark: #232a45; /* morado oscuro — titulares */
+  --color-accent: #ccff33; /* lima — SOLO acentos pequeños */
+  --color-text: #232a45;
+  --color-text-secondary: #6b7280; /* gris — texto secundario */
+  --color-warning: #f59e0b; /* ámbar — advertencias de terceros */
+  --color-border: #e5e7eb;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f9fafb;
+
+  /* Tipografía */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+
+  /* Ritmo */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  --space-6: 64px;
+
+  --radius: 10px;
+  --maxw: 880px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--color-primary-dark);
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.container {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+.muted {
+  color: var(--color-text-secondary);
+}
+
+/* --- Botones ------------------------------------------------------------ */
+
+.btn {
+  display: inline-block;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--color-primary-dark);
+  text-decoration: none;
+}
+.btn-secondary {
+  background: transparent;
+  color: var(--color-primary);
+  border-color: var(--color-border);
+}
+.btn-secondary:hover {
+  border-color: var(--color-primary);
+  text-decoration: none;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Formularios -------------------------------------------------------- */
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+  color: var(--color-primary-dark);
+}
+
+textarea,
+input[type="file"] {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+textarea {
+  min-height: 320px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  line-height: 1.5;
+  resize: vertical;
+}
+textarea:focus,
+input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* --- Tarjetas ----------------------------------------------------------- */
+
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  background: var(--color-surface);
+}
+
+.card-muted {
+  background: var(--color-surface-muted);
+}
+
+/* --- Mensajes ----------------------------------------------------------- */
+
+.errors {
+  border: 1px solid var(--color-warning);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: #fffbeb;
+  padding: var(--space-3) var(--space-4);
+  margin-top: var(--space-4);
+}
+.errors h3 {
+  color: var(--color-warning);
+  margin-top: 0;
+}
+.errors ul {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+.errors li {
+  margin-bottom: var(--space-1);
+}
+
+/* --- Listado de propuestas --------------------------------------------- */
+
+.list {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+}
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-2);
+}
+.list-item-meta {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+/* Acento lima, SOLO para detalles pequeños. */
+.accent-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  margin-right: var(--space-2);
+}
+
+/* --- Resumen de carga --------------------------------------------------- */
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+.summary-cell .k {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+.summary-cell .v {
+  font-size: 20px;
+  font-weight: 650;
+  color: var(--color-primary-dark);
+}
+
+.price-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: var(--space-3) 0;
+}
+.price {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+.price small {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.stack > * + * {
+  margin-top: var(--space-4);
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
