@@ -39,12 +39,28 @@ export interface ForbiddenContentResult {
 }
 
 /**
- * Scan rendered output (HTML or plain text) for anything that must never be
- * shown to a client. Pure function — no DOM, safe on the server and in tests.
+ * Reduce HTML to the text a viewer actually reads: drop tags (and thus every
+ * attribute — class names, hrefs, data-*, title tooltips), then collapse
+ * whitespace. We scan this text, not the raw markup, so a kebab-case CSS
+ * class or a slug in a link href never counts as leaked internal content.
+ */
+export function visibleText(html: string): string {
+  return String(html ?? "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Scan rendered output for anything that must never be shown to a client.
+ * Pure function — no DOM, safe on the server and in tests. Only the visible
+ * text is inspected (see `visibleText`).
  */
 export function forbiddenContentCheck(html: string): ForbiddenContentResult {
   const violations: string[] = [];
-  const haystack = String(html ?? "");
+  const haystack = visibleText(html);
   const lower = haystack.toLowerCase();
 
   for (const word of FORBIDDEN_WORDS) {

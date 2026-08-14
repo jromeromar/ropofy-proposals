@@ -8,13 +8,13 @@
   "modo": "A",
   "as_is": {
     "de_donde_llegan": [
-      ["Formulario del sitio", "el canal con más volumen"],
-      ["WhatsApp", "conversaciones directas sin registro"],
+      ["Formulario del sitio", "cerca de 200 solicitudes al mes"],
+      ["WhatsApp", "el 60% entra por aquí"],
       ["Redes sociales", "mensajes que se pierden entre comentarios"]
     ],
     "por_donde_pasan": [
-      ["Recepción", "recibe todo y reparte a mano"],
-      ["Equipo comercial", "atiende según disponibilidad"]
+      ["Recepción", "1 persona recibe todo y reparte a mano"],
+      ["Equipo comercial", "8 asesores atienden según disponibilidad"]
     ],
     "donde_queda": [
       ["Hoja de cálculo", "el registro vive en un archivo compartido"],
@@ -53,22 +53,94 @@
     { "m": "Tableros", "hoy": 1, "por_que": "el estado del día no es visible sin pedir un reporte", "p": { "1": 3, "2": 3, "3": 4 } }
   ],
   "benchmark": { "sector": 52, "fuente": "Referencia interna de ejemplo" },
-  "nota": { "puntos": 34, "letra": "D" },
+  "nota": { "puntos": 46, "letra": "D" },
   "componentes": {
-    "comp-ejemplo-ruteo": {
-      "id": "comp-ejemplo-ruteo",
-      "nombre_cliente": "Cada solicitud llega a un responsable, no a una bandeja común",
+    "comp-captura-multicanal": {
+      "id": "comp-captura-multicanal",
+      "nombre_cliente": "Cada oportunidad entra registrada, venga del canal que venga",
       "plan": "fundamental",
       "tipo": "flujo",
-      "vis": "back",
-      "journey": 120,
+      "vis": "front",
+      "journey": 5,
       "instancias": 1,
       "inst_por": "[unico]",
       "cuota": null,
       "aplica_si": "entra por más de un canal"
     },
-    "comp-ejemplo-tablero": {
-      "id": "comp-ejemplo-tablero",
+    "comp-ruteo-responsable": {
+      "id": "comp-ruteo-responsable",
+      "nombre_cliente": "Cada solicitud llega a un responsable, no a una bandeja común",
+      "plan": "fundamental",
+      "tipo": "flujo",
+      "vis": "back",
+      "journey": 20,
+      "instancias": 1,
+      "inst_por": "[unico]",
+      "cuota": null,
+      "aplica_si": "hay varios equipos de atención"
+    },
+    "comp-ia-precalifica": {
+      "id": "comp-ia-precalifica",
+      "nombre_cliente": "El asistente saluda y ordena la primera conversación",
+      "plan": "fundamental",
+      "tipo": "chatbot_ia",
+      "vis": "ambos",
+      "journey": 40,
+      "instancias": 1,
+      "inst_por": "[unico]",
+      "cuota": null,
+      "aplica_si": "el volumen supera la atención humana en horas pico"
+    },
+    "comp-ia-agenda": {
+      "id": "comp-ia-agenda",
+      "nombre_cliente": "El asistente agenda las citas sin intervención del equipo",
+      "plan": "avanzado",
+      "tipo": "chatbot_ia",
+      "vis": "ambos",
+      "journey": 42,
+      "instancias": 1,
+      "inst_por": "[unico]",
+      "cuota": null,
+      "aplica_si": "las citas se agendan a mano"
+    },
+    "comp-ia-decide": {
+      "id": "comp-ia-decide",
+      "nombre_cliente": "El asistente prioriza y decide a quién contactar primero",
+      "plan": "inteligente",
+      "tipo": "chatbot_ia",
+      "vis": "back",
+      "journey": 45,
+      "instancias": 1,
+      "inst_por": "[unico]",
+      "cuota": null,
+      "aplica_si": "hay más demanda que capacidad de contacto"
+    },
+    "comp-firma-digital": {
+      "id": "comp-firma-digital",
+      "nombre_cliente": "El cliente firma en línea, sin imprimir nada",
+      "plan": "avanzado",
+      "tipo": "flujo",
+      "vis": "front",
+      "journey": 80,
+      "instancias": 1,
+      "inst_por": "[unico]",
+      "cuota": null,
+      "aplica_si": "el cierre requiere firma de documentos"
+    },
+    "comp-oleadas-reactivacion": {
+      "id": "comp-oleadas-reactivacion",
+      "nombre_cliente": "Los contactos inactivos reciben un segundo acercamiento",
+      "plan": "inteligente",
+      "tipo": "campaña",
+      "vis": "back",
+      "journey": 95,
+      "instancias": 1,
+      "inst_por": "[unico]",
+      "cuota": null,
+      "aplica_si": "existe una base de contactos inactivos"
+    },
+    "comp-tablero-asesor": {
+      "id": "comp-tablero-asesor",
       "nombre_cliente": "El equipo abre el día viendo qué atender primero",
       "plan": "fundamental",
       "tipo": "tablero",
@@ -78,30 +150,6 @@
       "inst_por": "equipo",
       "cuota": "hasta 3",
       "aplica_si": "hay más de un equipo de atención"
-    },
-    "comp-ejemplo-asistente": {
-      "id": "comp-ejemplo-asistente",
-      "nombre_cliente": "Un asistente responde al instante y ordena la primera conversación",
-      "plan": "avanzado",
-      "tipo": "asistente",
-      "vis": "ambos",
-      "journey": 110,
-      "instancias": 1,
-      "inst_por": "[unico]",
-      "cuota": null,
-      "aplica_si": "el volumen supera la atención humana en horas pico"
-    },
-    "comp-ejemplo-reactivacion": {
-      "id": "comp-ejemplo-reactivacion",
-      "nombre_cliente": "Los contactos que no respondieron reciben un segundo acercamiento",
-      "plan": "inteligente",
-      "tipo": "campaña",
-      "vis": "back",
-      "journey": 210,
-      "instancias": 1,
-      "inst_por": "[unico]",
-      "cuota": null,
-      "aplica_si": "existe una base de contactos inactivos"
     }
   },
   "no_aplican": [
