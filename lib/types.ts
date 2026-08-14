@@ -35,6 +35,10 @@ export interface Fuga {
   cuantificacion: { valor: number | string };
   /** Required when estado === "mitigable". */
   depende_de_tercero?: boolean;
+  /** Full prose for the client document (optional). */
+  texto?: string;
+  /** Verbatim client quote for the client document (optional). */
+  evidencia_textual?: string;
 }
 
 export interface Madurez {
@@ -57,6 +61,8 @@ export interface Componente {
   vis: Visibilidad;
   journey: number;
   cuota?: string | null;
+  /** Optional benefit/description shown beneath the name in the client doc. */
+  beneficio?: string;
 }
 
 export interface MultiplicadorPlan {
@@ -147,6 +153,23 @@ export interface ClientDocument {
   [key: string]: unknown;
 }
 
+/** The client's acceptance, recorded server-side at accept time. */
+export interface Acceptance {
+  at: string; // ISO
+  nombre: string;
+  correo: string;
+  observaciones: string | null;
+  /** Plan selected at accept time (may differ from the sent plan). */
+  plan: 1 | 2 | 3;
+  /** Effective price served at accept time (list or discounted). */
+  precioEfectivo: number;
+  moneda: string;
+  ip: string | null;
+  userAgent: string | null;
+}
+
+export type EstadoVersion = "enviada" | "aceptada";
+
 /** One immutable, sent version of a proposal, addressable by its token. */
 export interface SentVersion {
   version: string; // "v1", "v2", ...
@@ -159,6 +182,9 @@ export interface SentVersion {
   motivo: string | null;
   condicion: AppliedCondition;
   clientDocument: ClientDocument;
+  /** Stored state. "expirada" is derived at display time, never stored. */
+  estado: EstadoVersion;
+  acceptance: Acceptance | null;
 }
 
 /** A proposal as persisted by the storage layer. */

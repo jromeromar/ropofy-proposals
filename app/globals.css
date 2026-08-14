@@ -213,9 +213,22 @@ input:focus {
   border: 1px solid var(--color-border);
 }
 .badge-enviada {
+  background: #eef2ff;
+  color: #3730a3;
+  border-color: #c7d2fe;
+}
+.badge-aceptada {
   background: #ecfdf5;
   color: #047857;
   border-color: #a7f3d0;
+}
+.badge-expirada {
+  background: #fff7ed;
+  color: #9a3412;
+  border-color: #fed7aa;
+}
+.version-accept {
+  margin-top: 4px;
 }
 
 .list-item-block {

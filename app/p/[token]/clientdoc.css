@@ -1,0 +1,777 @@
+/* ==========================================================================
+   Documento del cliente (/p/[token]).
+   Alta densidad de texto: se explica solo, viaja sin nadie al lado.
+   Estilo editorial. Este archivo es también el PDF congelado (print CSS).
+   ========================================================================== */
+
+.cd-doc {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 24px 96px;
+}
+.cd-notfound {
+  text-align: center;
+  padding: 96px 24px;
+  color: var(--color-text-secondary);
+}
+
+.cd-section {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.cd-section:last-child {
+  border-bottom: none;
+}
+.cd-h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  margin: 0 0 20px;
+}
+.cd-h3 {
+  font-size: 15px;
+  color: var(--color-primary-dark);
+  margin: 0 0 12px;
+}
+.cd-intro {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0 0 20px;
+}
+
+/* 1. Portada */
+.cd-portada {
+  padding-top: 80px;
+}
+.cd-titular {
+  font-size: clamp(34px, 5vw, 48px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--color-primary-dark);
+  margin: 0 0 18px;
+  max-width: 20ch;
+}
+.cd-portada-meta {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  margin: 0 0 10px;
+}
+.cd-portada-nota {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  margin: 0;
+}
+
+/* Plan switcher */
+.cd-switcher {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  gap: 10px;
+  padding: 14px 0;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+.cd-pill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  cursor: pointer;
+  font-weight: 650;
+  color: var(--color-primary-dark);
+}
+.cd-pill small {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.cd-pill.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.cd-pill.active small {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* 2. Lo que entendimos */
+.cd-two-col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 28px;
+}
+@media (min-width: 720px) {
+  .cd-two-col {
+    grid-template-columns: 1.3fr 0.7fr;
+  }
+}
+.cd-prose {
+  font-size: 16px;
+  line-height: 1.7;
+}
+.cd-prose p {
+  margin: 0;
+}
+.cd-figure-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.cd-figure-row:last-child {
+  border-bottom: none;
+}
+.cd-figure-label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.cd-figure-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+/* 3. As-is */
+.cd-asis {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (min-width: 720px) {
+  .cd-asis {
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+  }
+}
+.cd-asis-col {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.cd-asis-title {
+  font-size: 14px;
+  margin: 0 0 12px;
+  color: var(--color-primary-dark);
+}
+.cd-asis-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cd-asis-col li {
+  margin-bottom: 10px;
+}
+.cd-asis-col li strong {
+  display: block;
+  font-size: 14px;
+  color: var(--color-primary-dark);
+}
+.cd-asis-note {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.cd-arrow {
+  align-self: center;
+  color: var(--color-primary);
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* 4. Fugas */
+.cd-fuga {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin-bottom: 14px;
+}
+.cd-fuga.dominante {
+  border-color: var(--color-primary);
+  border-left-width: 4px;
+  background: rgba(72, 92, 199, 0.04);
+}
+.cd-fuga.mitigable {
+  border-left: 4px solid var(--color-warning);
+}
+.cd-fuga.fuera {
+  background: var(--color-surface-muted);
+}
+.cd-fugas-grid {
+  display: grid;
+  gap: 14px;
+}
+.cd-fuga-titulo {
+  font-size: 18px;
+  margin: 0 0 8px;
+  color: var(--color-primary-dark);
+}
+.cd-fuga.dominante .cd-fuga-titulo {
+  font-size: 22px;
+}
+.cd-fuga-cifra {
+  font-size: 28px;
+  font-weight: 750;
+  color: var(--color-primary);
+  margin-bottom: 10px;
+}
+.cd-fuga-texto {
+  font-size: 15px;
+  line-height: 1.65;
+  margin: 0 0 12px;
+}
+.cd-fuga-quote {
+  margin: 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--color-border);
+  background: var(--color-surface-muted);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  color: var(--color-primary-dark);
+}
+.cd-fuga-quote cite {
+  display: block;
+  margin-top: 8px;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.cd-fuga-estado {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+/* 5. Diagnóstico */
+.cd-diagnostico {
+  text-align: center;
+}
+.cd-nota-letra {
+  font-size: 88px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-primary);
+}
+.cd-nota-puntos {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+}
+.cd-benchmark {
+  max-width: 460px;
+  margin: 24px auto;
+}
+.cd-benchmark-track {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+}
+.cd-benchmark-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+}
+.cd-benchmark-mark {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 16px;
+  background: var(--color-primary-dark);
+}
+.cd-benchmark-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 10px;
+}
+
+/* Maturity bars (shared) */
+.cd-madurez {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  text-align: left;
+}
+.cd-madurez-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 200px) 1fr;
+  align-items: center;
+  gap: 16px;
+}
+.cd-madurez-nombre {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+}
+.cd-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.cd-bar .seg {
+  height: 14px;
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+}
+.cd-bar .seg.hoy {
+  background: #4b5563;
+  border-color: #4b5563;
+}
+.cd-bar .seg.meta {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* 6. Clave de lectura */
+.cd-clave {
+  border: 1px solid var(--color-primary);
+  border-radius: 12px;
+  padding: 20px 24px;
+  background: rgba(72, 92, 199, 0.04);
+}
+.cd-clave-title {
+  margin: 0 0 10px;
+  color: var(--color-primary-dark);
+  font-size: 16px;
+}
+.cd-clave p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+/* 7. Plano */
+.cd-bands {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.cd-band {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 20px;
+}
+.cd-band-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.cd-band-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--color-primary-dark);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.cd-band-name {
+  font-weight: 700;
+  color: var(--color-primary-dark);
+}
+.cd-band-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.cd-card {
+  position: relative;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 14px;
+}
+.cd-card-nombre {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  line-height: 1.35;
+}
+.cd-card-beneficio {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+.cd-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.cd-chip-cuota,
+.cd-chip-inst,
+.cd-chip-vis {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.cd-chip-cuota {
+  background: rgba(72, 92, 199, 0.12);
+  color: var(--color-primary);
+}
+.cd-chip-inst {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  cursor: help;
+}
+.cd-chip-vis {
+  background: #eef2ff;
+  color: #3730a3;
+}
+.cd-card.locked {
+  color: var(--color-text-secondary);
+  background: repeating-linear-gradient(
+    45deg,
+    #f3f4f6,
+    #f3f4f6 8px,
+    #eceef1 8px,
+    #eceef1 16px
+  );
+}
+.cd-card.locked .cd-card-nombre {
+  color: var(--color-text-secondary);
+}
+.cd-lock {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  margin-top: 8px;
+}
+.cd-ai-node {
+  margin-top: 12px;
+  border-radius: 12px;
+  padding: 18px;
+  background: var(--color-primary);
+  color: #fff;
+}
+.cd-ai-node.locked {
+  background: #9aa1b4;
+}
+.cd-ai-title {
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.cd-ai-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cd-ai-chip {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+.cd-ai-chip.locked {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.cd-ai-chip em {
+  font-style: normal;
+  text-decoration: none;
+}
+
+/* Rail + no aplican */
+.cd-rail {
+  margin-top: 28px;
+}
+.cd-rail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.cd-rail-card {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 14px;
+}
+.cd-rail-nombre {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-primary-dark);
+}
+.cd-rail-nota {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 4px 0 10px;
+}
+.cd-cost-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.badge-incluido {
+  background: #ecfdf5;
+  color: #047857;
+}
+.badge-consumo {
+  background: #fffbeb;
+  color: var(--color-warning);
+}
+.badge-licencia {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+.badge-cotizar {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+.cd-noaplican {
+  margin-top: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  background: var(--color-surface-muted);
+}
+.cd-noaplican-intro {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0 0 12px;
+}
+.cd-noaplican ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.cd-noaplican li {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.cd-noaplican strong {
+  color: var(--color-primary-dark);
+}
+
+/* 8. Planes */
+.cd-planes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.cd-plan-card {
+  position: relative;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 24px 20px;
+  background: var(--color-surface);
+  cursor: pointer;
+}
+.cd-plan-card.active {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+.cd-badge-reco {
+  position: absolute;
+  top: -10px;
+  left: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-primary-dark);
+}
+.cd-plan-nombre {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+}
+.cd-plan-frase {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 8px 0 16px;
+  min-height: 3em;
+}
+.cd-plan-precio {
+  font-size: 24px;
+  font-weight: 750;
+  color: var(--color-primary);
+}
+
+/* 9. A dónde llega */
+.cd-adonde-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.cd-grade-arrow {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+.cd-grade-arrow strong {
+  color: var(--color-primary);
+}
+
+/* 10. Condiciones */
+.cd-condiciones {
+  margin: 0;
+  padding-left: 20px;
+}
+.cd-condiciones li {
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+/* 11. Inversión y aceptación */
+.cd-price-block {
+  text-align: center;
+  padding: 12px 0 28px;
+}
+.cd-price-strike {
+  font-size: 20px;
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+  margin-bottom: 8px;
+}
+.cd-price-final {
+  font-size: clamp(40px, 6vw, 52px);
+  font-weight: 800;
+  color: var(--color-primary);
+  line-height: 1.05;
+}
+.cd-price-line {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-top: 14px;
+}
+.cd-price-expired {
+  margin: 14px auto 0;
+  max-width: 520px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 14px;
+}
+.cd-accept {
+  max-width: 620px;
+  margin: 0 auto;
+}
+.cd-accept label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--color-primary-dark);
+}
+.cd-accept textarea,
+.cd-accept input {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+.cd-accept-notice {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 10px 0 20px;
+}
+.cd-accept-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (min-width: 560px) {
+  .cd-accept-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.cd-accept-btn {
+  display: inline-block;
+  padding: 14px 28px;
+  border: none;
+  border-radius: 12px;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+}
+.cd-accept-btn:hover {
+  background: var(--color-primary-dark);
+}
+.cd-accept-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.cd-accept-banner {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* --- Print (A4, frozen order PDF) -------------------------------------- */
+
+@media print {
+  .cd-switcher {
+    display: none !important;
+  }
+  .cd-doc {
+    max-width: none;
+    padding: 0;
+  }
+  .cd-section {
+    padding: 20px 0;
+  }
+  .cd-band,
+  .cd-card,
+  .cd-ai-node,
+  .cd-plan-card,
+  .cd-rail-card,
+  .cd-fuga,
+  .cd-clave,
+  .cd-price-block,
+  .cd-accept,
+  .cd-accept-banner {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+}

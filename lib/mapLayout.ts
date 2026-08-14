@@ -84,6 +84,50 @@ export interface BandLayout {
  * Build the ordered, numbered bands. Only bands that actually hold at least
  * one component are returned; numbering follows the canonical band order.
  */
+/** Anything that can be placed in a band and flagged as an AI component. */
+export interface BandItem {
+  journey: number;
+  isAI: boolean;
+}
+
+export interface Band<T> {
+  name: BandName;
+  numero: number;
+  regular: T[];
+  ai: T[];
+}
+
+/**
+ * Generic band grouping for pre-sanitised items (e.g. the client document's
+ * id-free components, which carry a precomputed `isAI`). Same ordering and
+ * numbering rules as `buildLayout`.
+ */
+export function bandsFrom<T extends BandItem>(items: T[]): Band<T>[] {
+  const buckets = new Map<BandName, { regular: T[]; ai: T[] }>();
+  for (const name of BAND_ORDER) buckets.set(name, { regular: [], ai: [] });
+
+  for (const it of items) {
+    const bucket = buckets.get(bandFromJourney(it.journey))!;
+    (it.isAI ? bucket.ai : bucket.regular).push(it);
+  }
+
+  const byJourney = (a: T, b: T) => a.journey - b.journey;
+  const bands: Band<T>[] = [];
+  let numero = 0;
+  for (const name of BAND_ORDER) {
+    const bucket = buckets.get(name)!;
+    if (bucket.regular.length === 0 && bucket.ai.length === 0) continue;
+    numero += 1;
+    bands.push({
+      name,
+      numero,
+      regular: bucket.regular.sort(byJourney),
+      ai: bucket.ai.sort(byJourney),
+    });
+  }
+  return bands;
+}
+
 export function buildLayout(
   componentes: Record<string, Componente>,
 ): BandLayout[] {

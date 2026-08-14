@@ -1,14 +1,14 @@
 import { storage } from "@/lib/storage";
-import PlaceholderDoc from "./PlaceholderDoc";
-import "./p.css";
+import { toClientDocVM } from "@/lib/clientDocVM";
+import ClientDocView from "./ClientDocView";
+import "./clientdoc.css";
 
 export const dynamic = "force-dynamic";
 
 /**
  * The client route. NO login, NO consultant logic. Resolves a token to its
- * frozen snapshot and renders a minimal placeholder (prompt 4 replaces this
- * with the full document). Rendered entirely on the server: nothing but the
- * final HTML reaches the browser.
+ * FROZEN snapshot and renders the full client document from it (never from
+ * the live draft). The interactive shell hydrates from an id-free VM only.
  */
 export default async function ClientDocumentPage({
   params,
@@ -18,18 +18,29 @@ export default async function ClientDocumentPage({
   const { token } = await params;
   const resolved = await storage.getByToken(token);
 
-  return (
-    <main className="p-doc">
-      {resolved ? (
-        <PlaceholderDoc clientDocument={resolved.sentVersion.clientDocument} />
-      ) : (
-        <div className="p-card">
-          <h1 className="p-title">Documento no disponible</h1>
-          <p className="p-muted">
-            Este enlace no es válido o la propuesta ya no está disponible.
-          </p>
+  if (!resolved) {
+    return (
+      <main className="cd-doc">
+        <div className="cd-notfound">
+          <h1>Documento no disponible</h1>
+          <p>Este enlace no es válido o la propuesta ya no está disponible.</p>
         </div>
-      )}
+      </main>
+    );
+  }
+
+  const sv = resolved.sentVersion;
+  const vm = toClientDocVM(sv.clientDocument, sv.sentAt);
+  const nowIso = new Date().toISOString();
+
+  return (
+    <main className="cd-doc">
+      <ClientDocView
+        vm={vm}
+        token={token}
+        nowIso={nowIso}
+        acceptance={sv.acceptance}
+      />
     </main>
   );
 }

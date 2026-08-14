@@ -19,6 +19,7 @@ import type {
   SentVersion,
   AppliedCondition,
   ClientDocument,
+  Acceptance,
 } from "./types";
 
 /** What the send flow supplies; storage assigns version, sentAt and token. */
@@ -50,7 +51,16 @@ export interface ProposalStorage {
   saveSentVersion(id: string, input: SentVersionInput): Promise<SentVersion>;
   /** Resolve a share token to its frozen version, or null. */
   getByToken(token: string): Promise<TokenResolution | null>;
+  /**
+   * Record the client's acceptance of a version. Rejects a second accept on
+   * the same version server-side (never just hidden in the UI).
+   */
+  aceptarVersion(token: string, acceptance: Acceptance): Promise<AcceptResult>;
 }
+
+export type AcceptResult =
+  | { ok: true; sentVersion: SentVersion }
+  | { ok: false; reason: "not_found" | "already_accepted" };
 
 // --- helpers ------------------------------------------------------------
 
@@ -110,6 +120,8 @@ function buildSentVersion(
     motivo: input.motivo,
     condicion: input.condicion,
     clientDocument: input.clientDocument,
+    estado: "enviada",
+    acceptance: null,
   };
 }
 
@@ -135,8 +147,12 @@ class MemoryFileStorage implements ProposalStorage {
       const raw = await fs.readFile(DATA_FILE, "utf8");
       const parsed = JSON.parse(raw) as StoredProposal[];
       for (const rec of parsed) {
-        // Tolerate records written before sent versions existed.
+        // Tolerate records written before sent versions / acceptance existed.
         if (!Array.isArray(rec.sentVersions)) rec.sentVersions = [];
+        for (const v of rec.sentVersions) {
+          if (!v.estado) v.estado = "enviada";
+          if (v.acceptance === undefined) v.acceptance = null;
+        }
         this.map.set(rec.id, rec);
       }
     } catch {
@@ -214,6 +230,26 @@ class MemoryFileStorage implements ProposalStorage {
       if (sentVersion) return { proposal, sentVersion };
     }
     return null;
+  }
+
+  async aceptarVersion(
+    token: string,
+    acceptance: Acceptance,
+  ): Promise<AcceptResult> {
+    await this.load();
+    for (const proposal of this.map.values()) {
+      const sentVersion = proposal.sentVersions.find((v) => v.token === token);
+      if (!sentVersion) continue;
+      if (sentVersion.estado === "aceptada") {
+        return { ok: false, reason: "already_accepted" };
+      }
+      sentVersion.estado = "aceptada";
+      sentVersion.acceptance = acceptance;
+      proposal.estado = "aceptada";
+      await this.persist();
+      return { ok: true, sentVersion };
+    }
+    return { ok: false, reason: "not_found" };
   }
 }
 
@@ -317,6 +353,25 @@ class KvStorage implements ProposalStorage {
     const sentVersion = proposal.sentVersions.find((v) => v.token === token);
     return sentVersion ? { proposal, sentVersion } : null;
   }
+
+  async aceptarVersion(
+    token: string,
+    acceptance: Acceptance,
+  ): Promise<AcceptResult> {
+    const kv = await this.clientPromise;
+    const resolved = await this.getByToken(token);
+    if (!resolved) return { ok: false, reason: "not_found" };
+    const { proposal } = resolved;
+    const sentVersion = proposal.sentVersions.find((v) => v.token === token)!;
+    if (sentVersion.estado === "aceptada") {
+      return { ok: false, reason: "already_accepted" };
+    }
+    sentVersion.estado = "aceptada";
+    sentVersion.acceptance = acceptance;
+    proposal.estado = "aceptada";
+    await kv.set(kvKey(proposal.id), proposal);
+    return { ok: true, sentVersion };
+  }
 }
 
 // --- backend selection --------------------------------------------------
@@ -342,4 +397,6 @@ export const storage: ProposalStorage = {
   saveVersion: (id, data) => getStorage().saveVersion(id, data),
   saveSentVersion: (id, input) => getStorage().saveSentVersion(id, input),
   getByToken: (token) => getStorage().getByToken(token),
+  aceptarVersion: (token, acceptance) =>
+    getStorage().aceptarVersion(token, acceptance),
 };

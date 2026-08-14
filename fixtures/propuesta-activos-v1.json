@@ -27,20 +27,26 @@
       "titulo": "El volumen supera la capacidad de respuesta",
       "estado": "activa",
       "dominante": true,
-      "cuantificacion": { "valor": "cerca de 300 solicitudes represadas" }
+      "cuantificacion": { "valor": "cerca de 300 solicitudes represadas" },
+      "texto": "Entran más solicitudes de las que el equipo alcanza a responder en el día. Las que no se atienden a tiempo se enfrían: el interesado ya habló con otro o perdió el impulso. No es que el equipo trabaje poco, es que el flujo entra más rápido de lo que una bandeja manual puede repartir.",
+      "evidencia_textual": "Nos llegan un montón de formularios y para cuando llamamos, la persona ya ni se acuerda de que nos escribió."
     },
     {
       "id": "F-02",
       "titulo": "Las conversaciones se dispersan entre canales",
       "estado": "mitigable",
       "depende_de_tercero": true,
-      "cuantificacion": { "valor": "3 canales sin consolidar" }
+      "cuantificacion": { "valor": "3 canales sin consolidar" },
+      "texto": "La misma persona escribe por el formulario, por WhatsApp y por redes, y cada conversación vive en un lugar distinto. Nadie ve la historia completa, así que se repite información y a veces dos personas atienden el mismo caso sin saberlo.",
+      "evidencia_textual": "A veces el cliente ya nos había escrito por Instagram y le volvemos a preguntar todo desde cero."
     },
     {
       "id": "F-03",
-      "titulo": "Integración con el sistema contable heredado",
+      "titulo": "El sistema contable heredado no se integra",
       "estado": "fuera_de_alcance",
-      "cuantificacion": { "valor": "1 sistema legado" }
+      "cuantificacion": { "valor": "1 sistema legado" },
+      "texto": "La facturación vive en un sistema antiguo que no expone forma de conectarse. Mientras siga así, algunos números hay que pasarlos a mano y eso ensucia las mediciones de cierre.",
+      "evidencia_textual": "El sistema de facturación es viejísimo, nadie lo toca por miedo a que se caiga."
     }
   ],
   "madurez": [
@@ -58,6 +64,7 @@
     "comp-captura-multicanal": {
       "id": "comp-captura-multicanal",
       "nombre_cliente": "Cada oportunidad entra registrada, venga del canal que venga",
+      "beneficio": "Ningún interesado se queda sin quedar anotado, aunque escriba a medianoche.",
       "plan": "fundamental",
       "tipo": "flujo",
       "vis": "front",
@@ -70,6 +77,7 @@
     "comp-ruteo-responsable": {
       "id": "comp-ruteo-responsable",
       "nombre_cliente": "Cada solicitud llega a un responsable, no a una bandeja común",
+      "beneficio": "Cada caso tiene dueño desde el primer minuto, así nadie asume que lo atiende otro.",
       "plan": "fundamental",
       "tipo": "flujo",
       "vis": "back",
@@ -82,6 +90,7 @@
     "comp-ia-precalifica": {
       "id": "comp-ia-precalifica",
       "nombre_cliente": "El asistente saluda y ordena la primera conversación",
+      "beneficio": "Responde al instante a cualquier hora y deja la conversación lista para el equipo.",
       "plan": "fundamental",
       "tipo": "chatbot_ia",
       "vis": "ambos",
@@ -94,6 +103,7 @@
     "comp-ia-agenda": {
       "id": "comp-ia-agenda",
       "nombre_cliente": "El asistente agenda las citas sin intervención del equipo",
+      "beneficio": "Propone horarios y confirma la reunión sin que nadie mueva la agenda a mano.",
       "plan": "avanzado",
       "tipo": "chatbot_ia",
       "vis": "ambos",
@@ -106,6 +116,7 @@
     "comp-ia-decide": {
       "id": "comp-ia-decide",
       "nombre_cliente": "El asistente prioriza y decide a quién contactar primero",
+      "beneficio": "Ordena la fila por probabilidad de cierre para que el equipo hable con quien más importa.",
       "plan": "inteligente",
       "tipo": "chatbot_ia",
       "vis": "back",
@@ -118,6 +129,7 @@
     "comp-firma-digital": {
       "id": "comp-firma-digital",
       "nombre_cliente": "El cliente firma en línea, sin imprimir nada",
+      "beneficio": "El acuerdo se cierra el mismo día, sin papeleo que frene la decisión.",
       "plan": "avanzado",
       "tipo": "flujo",
       "vis": "front",
@@ -130,6 +142,7 @@
     "comp-oleadas-reactivacion": {
       "id": "comp-oleadas-reactivacion",
       "nombre_cliente": "Los contactos inactivos reciben un segundo acercamiento",
+      "beneficio": "Recupera oportunidades que ya estaban en su base y se habían enfriado.",
       "plan": "inteligente",
       "tipo": "campaña",
       "vis": "back",
@@ -142,6 +155,7 @@
     "comp-tablero-asesor": {
       "id": "comp-tablero-asesor",
       "nombre_cliente": "El equipo abre el día viendo qué atender primero",
+      "beneficio": "Un tablero por equipo muestra la prioridad del día sin pedir reportes.",
       "plan": "fundamental",
       "tipo": "tablero",
       "vis": "front",

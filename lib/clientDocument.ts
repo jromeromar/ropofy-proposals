@@ -10,7 +10,8 @@
  */
 
 import { precioFinal, preciosFinalesPorPlan } from "./pricing";
-import type { Proposal, AppliedCondition, ClientDocument } from "./types";
+import { isAIComponent } from "./mapLayout";
+import type { Proposal, AppliedCondition, ClientDocument, Componente } from "./types";
 
 export type PlanNumero = 1 | 2 | 3;
 
@@ -84,6 +85,8 @@ export function buildClientDocument(
   }
 
   // Components: re-key with opaque ids and keep only client-safe fields.
+  // `isAI` is precomputed here (from the internal `tipo`) so the client
+  // document can rebuild the AI node without ever carrying `tipo`.
   const safe: Record<string, unknown> = {};
   const componentes = (doc.componentes ?? {}) as Record<string, Record<string, unknown>>;
   let n = 0;
@@ -91,16 +94,18 @@ export function buildClientDocument(
     n += 1;
     safe[`c${n}`] = {
       nombre_cliente: comp.nombre_cliente,
+      beneficio: comp.beneficio ?? null,
       plan: comp.plan,
       vis: comp.vis,
       journey: comp.journey,
       instancias: comp.instancias,
       cuota: comp.cuota ?? null,
+      isAI: isAIComponent(comp as unknown as Componente),
     };
   }
   doc.componentes = safe;
 
-  // Fugas: drop the internal id, keep client-facing fields.
+  // Fugas: drop the internal id, keep client-facing prose and quote.
   const fugas = (doc.fugas ?? []) as Array<Record<string, unknown>>;
   doc.fugas = fugas.map((f) => ({
     titulo: f.titulo,
@@ -108,6 +113,8 @@ export function buildClientDocument(
     dominante: Boolean(f.dominante),
     cuantificacion: f.cuantificacion,
     depende_de_tercero: f.depende_de_tercero ?? null,
+    texto: f.texto ?? null,
+    evidencia_textual: f.evidencia_textual ?? null,
   }));
 
   // Embed the fixed commercial condition (audit-only fields excluded).

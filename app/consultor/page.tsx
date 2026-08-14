@@ -23,8 +23,25 @@ function resumenCondicion(descuentoPct: number | null): string {
     : "sin descuento";
 }
 
+function estadoVersion(
+  estado: string,
+  vigencia: string | null,
+  now: number,
+): "aceptada" | "expirada" | "enviada" {
+  if (estado === "aceptada") return "aceptada";
+  if (vigencia && new Date(vigencia).getTime() < now) return "expirada";
+  return "enviada";
+}
+
+const ESTADO_BADGE: Record<string, string> = {
+  aceptada: "badge-aceptada",
+  expirada: "badge-expirada",
+  enviada: "badge-enviada",
+};
+
 export default async function ConsultorHome() {
   const proposals: StoredProposal[] = await storage.listProposals();
+  const now = Date.now();
 
   return (
     <main className="container stack">
@@ -66,27 +83,44 @@ export default async function ConsultorHome() {
 
               {p.sentVersions.length > 0 && (
                 <ul className="versions">
-                  {p.sentVersions.map((v) => (
-                    <li key={v.token} className="version-row">
-                      <div>
-                        <span className="badge badge-enviada">enviada</span>{" "}
-                        <strong>{v.version}</strong>{" "}
-                        <span className="list-item-meta">
-                          · {formatFecha(v.sentAt)} · {v.autor}
-                          {v.aprobador ? ` · aprobó ${v.aprobador}` : ""} ·{" "}
-                          {resumenCondicion(v.condicion.descuentoPct)}
-                        </span>
-                      </div>
-                      <a
-                        className="version-link"
-                        href={`/p/${v.token}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        /p/…{v.token.slice(-6)}
-                      </a>
-                    </li>
-                  ))}
+                  {p.sentVersions.map((v) => {
+                    const est = estadoVersion(
+                      v.estado,
+                      v.condicion.vigencia,
+                      now,
+                    );
+                    return (
+                      <li key={v.token} className="version-row">
+                        <div>
+                          <span className={`badge ${ESTADO_BADGE[est]}`}>{est}</span>{" "}
+                          <strong>{v.version}</strong>{" "}
+                          <span className="list-item-meta">
+                            · {formatFecha(v.sentAt)} · {v.autor}
+                            {v.aprobador ? ` · aprobó ${v.aprobador}` : ""} ·{" "}
+                            {resumenCondicion(v.condicion.descuentoPct)}
+                          </span>
+                          {v.acceptance && (
+                            <div className="list-item-meta version-accept">
+                              Aceptada por {v.acceptance.nombre} (
+                              {v.acceptance.correo}) el{" "}
+                              {formatFecha(v.acceptance.at)}
+                              {v.acceptance.observaciones
+                                ? ` · «${v.acceptance.observaciones}»`
+                                : ""}
+                            </div>
+                          )}
+                        </div>
+                        <a
+                          className="version-link"
+                          href={`/p/${v.token}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          /p/…{v.token.slice(-6)}
+                        </a>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </li>

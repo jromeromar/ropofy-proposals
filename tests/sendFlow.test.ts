@@ -1,12 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import path from "path";
-import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { storage } from "@/lib/storage";
 import { construirCondicion, buildClientDocument } from "@/lib/clientDocument";
-import { forbiddenContentCheck, visibleText } from "@/lib/rules";
-import PlaceholderDoc from "@/app/p/[token]/PlaceholderDoc";
 import type { Proposal } from "@/lib/types";
 
 function loadFixture(): Proposal {
@@ -96,46 +92,59 @@ describe("flujo de envío — versionado inmutable y tokens", () => {
   });
 });
 
-describe("placeholder /p — render", () => {
-  it("con descuento muestra lista tachada, precio final y línea con autor", async () => {
-    const data = loadFixture();
-    const condicion = construirCondicion(data, 2, {
-      descuentoPct: 15,
-      vigencia: "2026-09-01T12:00:00.000Z",
-      autor: "Ana Consultora",
-      aprobador: null,
+describe("aceptación — rechazo server-side de segundo accept", () => {
+  it("una versión aceptada rechaza un segundo accept", async () => {
+    const stored = await storage.saveProposal(loadFixture());
+    const v = await send(stored.id, 2, 15, "2027-01-01T12:00:00.000Z", "Ana", null);
+
+    const first = await storage.aceptarVersion(v.token, {
+      at: "2026-08-20T10:00:00.000Z",
+      nombre: "Cliente Uno",
+      correo: "cliente@ejemplo.com",
+      observaciones: "todo bien",
+      plan: 2,
+      precioEfectivo: 3468,
+      moneda: "USD",
+      ip: "1.2.3.4",
+      userAgent: "test",
     });
-    const doc = buildClientDocument(data, condicion, 2);
-    const html = renderToStaticMarkup(
-      React.createElement(PlaceholderDoc, {
-        clientDocument: doc,
-        now: new Date("2026-08-20T00:00:00Z"),
-      }),
-    );
-    const text = visibleText(html);
-    expect(forbiddenContentCheck(html).ok).toBe(true);
-    expect(text).toContain("$4.080 USD"); // struck list
-    expect(text).toContain("$3.468 USD"); // final
-    expect(text).toContain("Condición registrada por Ana Consultora");
+    expect(first.ok).toBe(true);
+
+    const second = await storage.aceptarVersion(v.token, {
+      at: "2026-08-20T11:00:00.000Z",
+      nombre: "Cliente Dos",
+      correo: "otro@ejemplo.com",
+      observaciones: null,
+      plan: 2,
+      precioEfectivo: 3468,
+      moneda: "USD",
+      ip: "1.2.3.4",
+      userAgent: "test",
+    });
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.reason).toBe("already_accepted");
+
+    const resolved = await storage.getByToken(v.token);
+    expect(resolved?.sentVersion.estado).toBe("aceptada");
+    expect(resolved?.sentVersion.acceptance?.nombre).toBe("Cliente Uno");
   });
 
-  it("sin descuento muestra solo el precio de lista, cero menciones de descuento", async () => {
-    const data = loadFixture();
-    const condicion = construirCondicion(data, 2, {
-      descuentoPct: null,
-      vigencia: null,
-      autor: "Ana Consultora",
-      aprobador: null,
+  it("aceptar una versión no invalida los otros tokens", async () => {
+    const stored = await storage.saveProposal(loadFixture());
+    const a = await send(stored.id, 2, 15, "2027-01-01T12:00:00.000Z", "Ana", null);
+    const b = await send(stored.id, 1, null, null, "Ana", null);
+    await storage.aceptarVersion(a.token, {
+      at: "2026-08-20T10:00:00.000Z",
+      nombre: "Cliente",
+      correo: "c@ejemplo.com",
+      observaciones: null,
+      plan: 2,
+      precioEfectivo: 3468,
+      moneda: "USD",
+      ip: null,
+      userAgent: null,
     });
-    const doc = buildClientDocument(data, condicion, 2);
-    const html = renderToStaticMarkup(
-      React.createElement(PlaceholderDoc, { clientDocument: doc }),
-    );
-    const text = visibleText(html);
-    expect(forbiddenContentCheck(html).ok).toBe(true);
-    expect(text).toContain("$4.080 USD");
-    expect(text.toLowerCase()).not.toContain("descuento");
-    expect(text.toLowerCase()).not.toContain("condición registrada");
-    expect(text).not.toContain("$3.468"); // no discounted price anywhere
+    const rb = await storage.getByToken(b.token);
+    expect(rb?.sentVersion.estado).toBe("enviada");
   });
 });
