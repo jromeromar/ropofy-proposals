@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-/** Copies the absolute /p/ URL to the clipboard. Consultant-only. */
+/** Copies the absolute /p/ URL to the clipboard. Consultant/admin-only. */
 export default function CopyLink({ path }: { path: string }) {
   const [copiado, setCopiado] = useState(false);
 
@@ -19,7 +19,7 @@ export default function CopyLink({ path }: { path: string }) {
   }
 
   return (
-    <button type="button" className="exp-copy" onClick={copiar}>
+    <button type="button" className="version-copy" onClick={copiar}>
       {copiado ? "¡Copiado!" : "Copiar enlace"}
     </button>
   );

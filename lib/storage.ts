@@ -13,6 +13,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
+import { Redis } from "@upstash/redis";
 import type {
   Proposal,
   StoredProposal,
@@ -20,7 +21,6 @@ import type {
   AppliedCondition,
   ClientDocument,
   Acceptance,
-  TelemetryEvent,
 } from "./types";
 
 /** What the send flow supplies; storage assigns version, sentAt and token. */
@@ -31,17 +31,7 @@ export interface SentVersionInput {
   motivo: string | null;
   condicion: AppliedCondition;
   clientDocument: ClientDocument;
-  /** Hash of the draft data at send time (to detect later unsent edits). */
-  sourceHash: string;
 }
-
-/** Deterministic hash of a proposal's draft data, for drift detection. */
-export function hashData(data: unknown): string {
-  return crypto.createHash("sha1").update(JSON.stringify(data)).digest("hex");
-}
-
-/** Cap on stored telemetry events per version (backstop against floods). */
-const MAX_EVENTS = 1000;
 
 /** A token resolved to its owning proposal and frozen version. */
 export interface TokenResolution {
@@ -67,15 +57,21 @@ export interface ProposalStorage {
    * the same version server-side (never just hidden in the UI).
    */
   aceptarVersion(token: string, acceptance: Acceptance): Promise<AcceptResult>;
-  /** Append a telemetry event to a version. Rejects unknown tokens. */
-  registrarEvento(token: string, event: TelemetryEvent): Promise<EventResult>;
+  /**
+   * Throttle guard for `documento_abierto`: returns true (and records the
+   * timestamp) at most once per token per `windowMs`. Unknown token → false.
+   */
+  debeEmitirApertura(token: string, windowMs: number): Promise<boolean>;
+  /**
+   * Once-guard for `condicion_expirada`: returns true the first time only.
+   * Unknown token → false.
+   */
+  debeEmitirExpiracion(token: string): Promise<boolean>;
 }
 
 export type AcceptResult =
   | { ok: true; sentVersion: SentVersion }
   | { ok: false; reason: "not_found" | "already_accepted" };
-
-export type EventResult = { ok: true } | { ok: false; reason: "not_found" };
 
 // --- helpers ------------------------------------------------------------
 
@@ -137,8 +133,8 @@ function buildSentVersion(
     clientDocument: input.clientDocument,
     estado: "enviada",
     acceptance: null,
-    events: [],
-    sourceHash: input.sourceHash,
+    lastOpenEmitAt: null,
+    expiredEmitted: false,
   };
 }
 
@@ -174,8 +170,8 @@ class MemoryFileStorage implements ProposalStorage {
         for (const v of rec.sentVersions) {
           if (!v.estado) v.estado = "enviada";
           if (v.acceptance === undefined) v.acceptance = null;
-          if (!Array.isArray(v.events)) v.events = [];
-          if (typeof v.sourceHash !== "string") v.sourceHash = "";
+          if (v.lastOpenEmitAt === undefined) v.lastOpenEmitAt = null;
+          if (typeof v.expiredEmitted !== "boolean") v.expiredEmitted = false;
         }
         this.map.set(rec.id, rec);
       }
@@ -277,21 +273,32 @@ class MemoryFileStorage implements ProposalStorage {
     return { ok: false, reason: "not_found" };
   }
 
-  async registrarEvento(
-    token: string,
-    event: TelemetryEvent,
-  ): Promise<EventResult> {
+  private async findByToken(token: string): Promise<SentVersion | null> {
     await this.load();
     for (const proposal of this.map.values()) {
-      const sentVersion = proposal.sentVersions.find((v) => v.token === token);
-      if (!sentVersion) continue;
-      sentVersion.events.push(event);
-      if (sentVersion.events.length > MAX_EVENTS)
-        sentVersion.events = sentVersion.events.slice(-MAX_EVENTS);
-      await this.persist();
-      return { ok: true };
+      const v = proposal.sentVersions.find((sv) => sv.token === token);
+      if (v) return v;
     }
-    return { ok: false, reason: "not_found" };
+    return null;
+  }
+
+  async debeEmitirApertura(token: string, windowMs: number): Promise<boolean> {
+    const v = await this.findByToken(token);
+    if (!v) return false;
+    const now = Date.now();
+    const last = v.lastOpenEmitAt ? new Date(v.lastOpenEmitAt).getTime() : 0;
+    if (now - last < windowMs) return false;
+    v.lastOpenEmitAt = new Date(now).toISOString();
+    await this.persist();
+    return true;
+  }
+
+  async debeEmitirExpiracion(token: string): Promise<boolean> {
+    const v = await this.findByToken(token);
+    if (!v || v.expiredEmitted) return false;
+    v.expiredEmitted = true;
+    await this.persist();
+    return true;
   }
 }
 
@@ -301,51 +308,45 @@ const KV_INDEX = "proposals:index";
 const kvKey = (id: string) => `proposal:${id}`;
 const kvTokenKey = (token: string) => `ptoken:${token}`;
 
-// Non-literal specifier so the type checker and bundler never try to resolve
-// this optional dependency at build time. It is imported at runtime only when
-// KV is actually configured (see isKvConfigured).
-const KV_MODULE = "@vercel/kv";
-
 /**
- * Vercel KV backend, used only when KV env vars are present. `@vercel/kv` is
- * an optional dependency: the import is marked webpackIgnore so the bundler
- * never tries to resolve it when it isn't installed, and this class is only
- * ever constructed when KV is actually configured.
+ * Read the Redis REST credentials from the environment, accepting either the
+ * Vercel KV names (KV_REST_API_URL / KV_REST_API_TOKEN) or the Upstash names
+ * (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN). Returns null when not
+ * configured, in which case we fall back to the local memory/file store.
  */
-/** The slice of the @vercel/kv client this backend actually uses. */
-interface KvClient {
-  get: (k: string) => Promise<unknown>;
-  set: (k: string, v: unknown) => Promise<unknown>;
-  sadd: (k: string, v: string) => Promise<unknown>;
-  smembers: (k: string) => Promise<string[]>;
+function kvEnv(): { url: string; token: string } | null {
+  const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
+  const token =
+    process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
+  return url && token ? { url, token } : null;
 }
 
+/**
+ * Shared Redis backend (Vercel KV / Upstash). Used whenever the REST
+ * credentials are present, so proposals persist across serverless instances.
+ * `@upstash/redis` serialises objects to JSON on write and parses on read.
+ */
 class KvStorage implements ProposalStorage {
-  private clientPromise: Promise<KvClient>;
+  private redis: Redis;
 
-  constructor() {
-    this.clientPromise = import(/* webpackIgnore: true */ KV_MODULE).then(
-      (m: { kv: KvClient }) => m.kv,
-    );
+  constructor(env: { url: string; token: string }) {
+    this.redis = new Redis({ url: env.url, token: env.token });
   }
 
   async saveProposal(data: Proposal): Promise<StoredProposal> {
-    const kv = await this.clientPromise;
     const id = generateId(data.cliente);
     const rec = newRecord(id, data, "v1");
-    await kv.set(kvKey(id), rec);
-    await kv.sadd(KV_INDEX, id);
+    await this.redis.set(kvKey(id), rec);
+    await this.redis.sadd(KV_INDEX, id);
     return rec;
   }
 
   async getProposal(id: string): Promise<StoredProposal | null> {
-    const kv = await this.clientPromise;
-    return ((await kv.get(kvKey(id))) as StoredProposal | null) ?? null;
+    return (await this.redis.get<StoredProposal>(kvKey(id))) ?? null;
   }
 
   async listProposals(): Promise<StoredProposal[]> {
-    const kv = await this.clientPromise;
-    const ids = await kv.smembers(KV_INDEX);
+    const ids = await this.redis.smembers(KV_INDEX);
     const records = await Promise.all(ids.map((id) => this.getProposal(id)));
     return records
       .filter((r): r is StoredProposal => r !== null)
@@ -353,7 +354,6 @@ class KvStorage implements ProposalStorage {
   }
 
   async saveVersion(id: string, data: Proposal): Promise<StoredProposal> {
-    const kv = await this.clientPromise;
     const existing = await this.getProposal(id);
     if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
     const rec: StoredProposal = {
@@ -363,7 +363,7 @@ class KvStorage implements ProposalStorage {
       createdAt: nowIso(),
       data,
     };
-    await kv.set(kvKey(id), rec);
+    await this.redis.set(kvKey(id), rec);
     return rec;
   }
 
@@ -371,24 +371,22 @@ class KvStorage implements ProposalStorage {
     id: string,
     input: SentVersionInput,
   ): Promise<SentVersion> {
-    const kv = await this.clientPromise;
     const existing = await this.getProposal(id);
     if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
     if (!Array.isArray(existing.sentVersions)) existing.sentVersions = [];
     const sent = buildSentVersion(existing, input);
     existing.sentVersions = [...existing.sentVersions, sent];
     existing.estado = "enviada";
-    await kv.set(kvKey(id), existing);
+    await this.redis.set(kvKey(id), existing);
     // Token index → { id, version } so tokens resolve in O(1).
-    await kv.set(kvTokenKey(sent.token), { id, version: sent.version });
+    await this.redis.set(kvTokenKey(sent.token), { id, version: sent.version });
     return sent;
   }
 
   async getByToken(token: string): Promise<TokenResolution | null> {
-    const kv = await this.clientPromise;
-    const ref = (await kv.get(kvTokenKey(token))) as
-      | { id: string; version: string }
-      | null;
+    const ref = await this.redis.get<{ id: string; version: string }>(
+      kvTokenKey(token),
+    );
     if (!ref) return null;
     const proposal = await this.getProposal(ref.id);
     if (!proposal) return null;
@@ -400,7 +398,6 @@ class KvStorage implements ProposalStorage {
     token: string,
     acceptance: Acceptance,
   ): Promise<AcceptResult> {
-    const kv = await this.clientPromise;
     const resolved = await this.getByToken(token);
     if (!resolved) return { ok: false, reason: "not_found" };
     const { proposal } = resolved;
@@ -411,32 +408,33 @@ class KvStorage implements ProposalStorage {
     sentVersion.estado = "aceptada";
     sentVersion.acceptance = acceptance;
     proposal.estado = "aceptada";
-    await kv.set(kvKey(proposal.id), proposal);
+    await this.redis.set(kvKey(proposal.id), proposal);
     return { ok: true, sentVersion };
   }
 
-  async registrarEvento(
-    token: string,
-    event: TelemetryEvent,
-  ): Promise<EventResult> {
-    const kv = await this.clientPromise;
+  async debeEmitirApertura(token: string, windowMs: number): Promise<boolean> {
     const resolved = await this.getByToken(token);
-    if (!resolved) return { ok: false, reason: "not_found" };
+    if (!resolved) return false;
     const { proposal } = resolved;
-    const sentVersion = proposal.sentVersions.find((v) => v.token === token)!;
-    if (!Array.isArray(sentVersion.events)) sentVersion.events = [];
-    sentVersion.events.push(event);
-    if (sentVersion.events.length > MAX_EVENTS)
-      sentVersion.events = sentVersion.events.slice(-MAX_EVENTS);
-    await kv.set(kvKey(proposal.id), proposal);
-    return { ok: true };
+    const v = proposal.sentVersions.find((sv) => sv.token === token)!;
+    const now = Date.now();
+    const last = v.lastOpenEmitAt ? new Date(v.lastOpenEmitAt).getTime() : 0;
+    if (now - last < windowMs) return false;
+    v.lastOpenEmitAt = new Date(now).toISOString();
+    await this.redis.set(kvKey(proposal.id), proposal);
+    return true;
   }
-}
 
-// --- backend selection --------------------------------------------------
-
-function isKvConfigured(): boolean {
-  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  async debeEmitirExpiracion(token: string): Promise<boolean> {
+    const resolved = await this.getByToken(token);
+    if (!resolved) return false;
+    const { proposal } = resolved;
+    const v = proposal.sentVersions.find((sv) => sv.token === token)!;
+    if (v.expiredEmitted) return false;
+    v.expiredEmitted = true;
+    await this.redis.set(kvKey(proposal.id), proposal);
+    return true;
+  }
 }
 
 let instance: ProposalStorage | null = null;
@@ -444,9 +442,15 @@ let instance: ProposalStorage | null = null;
 /** The process-wide storage instance, chosen once by environment. */
 export function getStorage(): ProposalStorage {
   if (!instance) {
-    instance = isKvConfigured() ? new KvStorage() : new MemoryFileStorage();
+    const env = kvEnv();
+    instance = env ? new KvStorage(env) : new MemoryFileStorage();
   }
   return instance;
+}
+
+/** Whether a shared Redis/KV backend is configured (else memory/file). */
+export function usingSharedStore(): boolean {
+  return kvEnv() !== null;
 }
 
 export const storage: ProposalStorage = {
@@ -458,5 +462,7 @@ export const storage: ProposalStorage = {
   getByToken: (token) => getStorage().getByToken(token),
   aceptarVersion: (token, acceptance) =>
     getStorage().aceptarVersion(token, acceptance),
-  registrarEvento: (token, event) => getStorage().registrarEvento(token, event),
+  debeEmitirApertura: (token, windowMs) =>
+    getStorage().debeEmitirApertura(token, windowMs),
+  debeEmitirExpiracion: (token) => getStorage().debeEmitirExpiracion(token),
 };

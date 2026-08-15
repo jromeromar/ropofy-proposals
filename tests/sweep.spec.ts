@@ -24,7 +24,7 @@ import PresentacionView from "@/app/consultor/[id]/presentacion/PresentacionView
 import { toClientDocVM } from "@/lib/clientDocVM";
 import { toPresentacionVM } from "@/lib/presentacionVM";
 import { construirCondicion, buildClientDocument } from "@/lib/clientDocument";
-import { storage, hashData } from "@/lib/storage";
+import { storage } from "@/lib/storage";
 import { visibleText } from "@/lib/rules";
 import { INTERNAL_ID_PATTERN_GLOBAL } from "@/lib/rules";
 import type { Proposal, SentVersion } from "@/lib/types";
@@ -98,7 +98,6 @@ async function buildState(): Promise<State> {
       motivo: "nota interna secreta",
       condicion: c,
       clientDocument: buildClientDocument(stored.data, c, plan),
-      sourceHash: hashData(stored.data),
     });
   }
 
@@ -202,14 +201,10 @@ describe("FINAL SWEEP", () => {
     expect(text).not.toContain("$5.470"); // discounted plan-3 price hidden
   });
 
-  it("8. telemetría rechaza eventos para tokens desconocidos", async () => {
-    const res = await storage.registrarEvento("token-que-no-existe", {
-      tipo: "abierto",
-      at: NOW,
-      userAgent: "x",
-    });
-    expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.reason).toBe("not_found");
+  it("8. telemetría no emite nada para tokens desconocidos", async () => {
+    // Unknown token → the emission guards return false (nothing is emitted).
+    expect(await storage.debeEmitirApertura("token-que-no-existe", 1000)).toBe(false);
+    expect(await storage.debeEmitirExpiracion("token-que-no-existe")).toBe(false);
   });
 
   it("9. todo snapshot de cliente carece de las claves prohibidas", () => {

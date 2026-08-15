@@ -7,11 +7,14 @@
  * sent version addressable by an unguessable token.
  */
 
-import { storage, hashData } from "@/lib/storage";
+import { headers } from "next/headers";
+import { storage } from "@/lib/storage";
 import { construirCondicion, buildClientDocument } from "@/lib/clientDocument";
 import { requiereAprobacion } from "@/lib/pricing";
 import { formatPrice } from "@/lib/rules";
 import { PLAN_LABEL } from "@/lib/mapLayout";
+import { emitirEvento, eventoPropuestaEnviada } from "@/lib/events";
+import { enlaceDe } from "@/lib/enlace";
 
 export interface EnviarInput {
   id: string;
@@ -103,8 +106,32 @@ export async function enviarPropuesta(input: EnviarInput): Promise<EnviarResult>
     motivo: motivo || null,
     condicion,
     clientDocument,
-    sourceHash: hashData(data),
   });
+
+  // Emit propuesta_enviada (fire-and-forget; never blocks the consultant).
+  const h = await headers();
+  const enlace = enlaceDe(h, sent.token);
+  emitirEvento(
+    eventoPropuestaEnviada(
+      {
+        cliente: data.cliente,
+        propuestaId: input.id,
+        version: sent.version,
+        enlace,
+        at: sent.sentAt,
+      },
+      {
+        plan: input.plan,
+        precio_lista: condicion.precioLista,
+        condicion: {
+          descuento_pct: condicion.descuentoPct,
+          autor: condicion.autor,
+          aprobador: condicion.aprobador,
+          vigencia: condicion.vigencia,
+        },
+      },
+    ),
+  );
 
   const resumen = [
     `Plan ${PLAN_LABEL[input.plan]}`,

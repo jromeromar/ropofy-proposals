@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { storage } from "@/lib/storage";
 import type { StoredProposal } from "@/lib/types";
+import CopyLink from "./CopyLink";
 
 // Always read fresh from storage.
 export const dynamic = "force-dynamic";
@@ -9,7 +10,7 @@ function formatFecha(iso: string): string {
   try {
     return new Intl.DateTimeFormat("es-CO", {
       year: "numeric",
-      month: "long",
+      month: "short",
       day: "numeric",
     }).format(new Date(iso));
   } catch {
@@ -17,38 +18,22 @@ function formatFecha(iso: string): string {
   }
 }
 
-function resumenCondicion(descuentoPct: number | null): string {
-  return descuentoPct != null
-    ? `${descuentoPct}% de descuento`
-    : "sin descuento";
-}
-
-function estadoVersion(
-  estado: string,
-  vigencia: string | null,
-  now: number,
-): "aceptada" | "expirada" | "enviada" {
-  if (estado === "aceptada") return "aceptada";
-  if (vigencia && new Date(vigencia).getTime() < now) return "expirada";
-  return "enviada";
-}
-
-const ESTADO_BADGE: Record<string, string> = {
-  aceptada: "badge-aceptada",
-  expirada: "badge-expirada",
-  enviada: "badge-enviada",
-};
-
+/**
+ * Minimal technical admin fallback. Proposal MANAGEMENT lives in Ropofy (the
+ * CRM) — this page exists only to find a proposal's id, its versions, and the
+ * shareable /p/ link. No estados, activity feeds or decision signals here.
+ */
 export default async function ConsultorHome() {
   const proposals: StoredProposal[] = await storage.listProposals();
-  const now = Date.now();
 
   return (
     <main className="container stack">
       <div className="header-row">
         <div>
           <h1>Propuestas</h1>
-          <p className="muted">Área del consultor</p>
+          <p className="muted">
+            Lista técnica (respaldo). La gestión vive en Ropofy.
+          </p>
         </div>
         <Link href="/consultor/nueva" className="btn btn-primary">
           Nueva propuesta
@@ -70,57 +55,33 @@ export default async function ConsultorHome() {
                 <div>
                   <div>
                     <span className="accent-dot" aria-hidden="true" />
-                    <Link href={`/consultor/${p.id}/presentacion`}>
-                      <strong>{p.cliente}</strong>
-                    </Link>
+                    <strong>{p.cliente}</strong>
                   </div>
                   <div className="list-item-meta">
-                    Cargada el {formatFecha(p.createdAt)}
+                    <code>{p.id}</code> · cargada {formatFecha(p.createdAt)}
                   </div>
                 </div>
-                <span className="badge">{p.estado}</span>
+                <Link href={`/consultor/${p.id}/cotizar`} className="btn btn-secondary">
+                  Preparar / enviar
+                </Link>
               </div>
 
               {p.sentVersions.length > 0 && (
                 <ul className="versions">
-                  {p.sentVersions.map((v) => {
-                    const est = estadoVersion(
-                      v.estado,
-                      v.condicion.vigencia,
-                      now,
-                    );
-                    return (
-                      <li key={v.token} className="version-row">
-                        <div>
-                          <span className={`badge ${ESTADO_BADGE[est]}`}>{est}</span>{" "}
-                          <strong>{v.version}</strong>{" "}
-                          <span className="list-item-meta">
-                            · {formatFecha(v.sentAt)} · {v.autor}
-                            {v.aprobador ? ` · aprobó ${v.aprobador}` : ""} ·{" "}
-                            {resumenCondicion(v.condicion.descuentoPct)}
-                          </span>
-                          {v.acceptance && (
-                            <div className="list-item-meta version-accept">
-                              Aceptada por {v.acceptance.nombre} (
-                              {v.acceptance.correo}) el{" "}
-                              {formatFecha(v.acceptance.at)}
-                              {v.acceptance.observaciones
-                                ? ` · «${v.acceptance.observaciones}»`
-                                : ""}
-                            </div>
-                          )}
-                        </div>
-                        <a
-                          className="version-link"
-                          href={`/p/${v.token}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
+                  {p.sentVersions.map((v) => (
+                    <li key={v.token} className="version-row">
+                      <div className="list-item-meta">
+                        <strong>{v.version}</strong> · {formatFecha(v.sentAt)} ·{" "}
+                        {v.autor}
+                      </div>
+                      <div className="version-actions">
+                        <a href={`/p/${v.token}`} target="_blank" rel="noreferrer">
                           /p/…{v.token.slice(-6)}
                         </a>
-                      </li>
-                    );
-                  })}
+                        <CopyLink path={`/p/${v.token}`} />
+                      </div>
+                    </li>
+                  ))}
                 </ul>
               )}
             </li>

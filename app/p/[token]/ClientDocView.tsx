@@ -91,7 +91,7 @@ export default function ClientDocView({
   const [plan, setPlanState] = useState<Plan>(
     initialPlan ?? vm.condicion.planSeleccionado,
   );
-  const tel = useTelemetria(token);
+  const tel = useTelemetria(token, initialPlan ?? vm.condicion.planSeleccionado);
   const setPlan = useCallback(
     (p: Plan) => {
       setPlanState(p);

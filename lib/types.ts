@@ -171,17 +171,14 @@ export interface Acceptance {
 export type EstadoVersion = "enviada" | "aceptada";
 
 /**
- * Telemetry captured on the client document. The document travels alone to
- * decision-makers who were not on the call, so opens are the buying signal.
- * No cookies, no third-party scripts, no fingerprinting beyond userAgent.
+ * One immutable, sent version of a proposal, addressable by its token.
+ *
+ * Proposal MANAGEMENT (status, activity, decision signals) lives in Ropofy
+ * (the GHL-based CRM). This app only freezes the snapshot, tokenizes it,
+ * captures acceptance, and EMITS events. The only bookkeeping kept here is
+ * what an event needs: the double-accept guard (estado + acceptance) and the
+ * emission throttle/once flags below.
  */
-export type TelemetryEvent =
-  | { tipo: "abierto"; at: string; userAgent: string | null }
-  | { tipo: "plan_cambiado"; at: string; planVisto: 1 | 2 | 3 }
-  | { tipo: "observacion_escrita"; at: string }
-  | { tipo: "tiempo_en_pagina"; at: string; seconds: number };
-
-/** One immutable, sent version of a proposal, addressable by its token. */
 export interface SentVersion {
   version: string; // "v1", "v2", ...
   token: string; // url-safe, unguessable
@@ -196,10 +193,10 @@ export interface SentVersion {
   /** Stored state. "expirada" is derived at display time, never stored. */
   estado: EstadoVersion;
   acceptance: Acceptance | null;
-  /** Telemetry events for this version, oldest first. */
-  events: TelemetryEvent[];
-  /** Hash of the draft data at send time — to detect unsent draft edits. */
-  sourceHash: string;
+  /** Last time a `documento_abierto` event was emitted (throttle, 10 min). */
+  lastOpenEmitAt: string | null;
+  /** Whether `condicion_expirada` has already been emitted (fire once). */
+  expiredEmitted: boolean;
 }
 
 /** A proposal as persisted by the storage layer. */
