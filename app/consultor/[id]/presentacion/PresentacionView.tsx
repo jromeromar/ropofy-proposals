@@ -253,23 +253,10 @@ function Fugas({ vm }: { vm: PresentacionVM }) {
 // --- 4. La nota ---------------------------------------------------------
 
 function LaNota({ vm }: { vm: PresentacionVM }) {
-  const sector = vm.benchmarkSector;
   return (
     <section className="pv-section pv-nota-section">
       <div className="pv-nota-letra">{vm.nota.letra}</div>
       <div className="pv-nota-puntos">{vm.nota.puntos}/100</div>
-      {typeof sector === "number" && (
-        <div className="pv-benchmark">
-          <div className="pv-benchmark-track">
-            <div className="pv-benchmark-fill" style={{ width: `${vm.nota.puntos}%` }} />
-            <div className="pv-benchmark-mark" style={{ left: `${sector}%` }} />
-          </div>
-          <div className="pv-benchmark-label">
-            <span>Su nota: {vm.nota.puntos}</span>
-            <span>Promedio del sector: {sector}</span>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
@@ -439,20 +426,33 @@ function ADondeLlega({ vm, plan }: { vm: PresentacionVM; plan: Plan }) {
         {vm.madurez.map((m: MadurezVM, i) => {
           const hoy = m.hoy;
           const meta = m.p[key];
+          const sector = vm.benchmarkModulos?.[m.m];
           return (
             <div className="pv-madurez-row" key={i}>
               <div className="pv-madurez-nombre">{m.m}</div>
-              <div className="pv-bar">
-                {[0, 1, 2, 3].map((seg) => {
-                  const cls =
-                    seg < hoy ? "seg hoy" : seg < meta ? "seg meta" : "seg";
-                  return <span className={cls} key={seg} />;
-                })}
+              <div className="pv-bar-wrap">
+                <div className="pv-bar">
+                  {[0, 1, 2, 3].map((seg) => {
+                    const cls =
+                      seg < hoy ? "seg hoy" : seg < meta ? "seg meta" : "seg";
+                    return <span className={cls} key={seg} />;
+                  })}
+                </div>
+                {typeof sector === "number" && (
+                  <span
+                    className="pv-bar-sector"
+                    style={{ left: `${(sector / 4) * 100}%` }}
+                    title={`Promedio del sector: ${sector}`}
+                  />
+                )}
               </div>
             </div>
           );
         })}
       </div>
+      {vm.benchmarkModulos && (
+        <p className="pv-bar-legend">La línea marca el promedio del sector.</p>
+      )}
     </section>
   );
 }

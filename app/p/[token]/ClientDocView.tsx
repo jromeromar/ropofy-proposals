@@ -8,7 +8,7 @@
  * routes, no discount controls, no internal data.
  */
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatPrice } from "@/lib/rules";
 import { gradeForPlan } from "@/lib/grade";
 import { bloquePrecioEfectivo } from "@/lib/condition";
@@ -17,6 +17,7 @@ import { isLocked, PLAN_RANK, PLAN_LABEL } from "@/lib/mapLayout";
 import type { ClientDocVM, ClientComp, FugaVM } from "@/lib/clientDocVM";
 import type { Acceptance, Visibilidad } from "@/lib/types";
 import { aceptarPropuesta } from "./actions";
+import { useTelemetria } from "./useTelemetria";
 
 type Plan = 1 | 2 | 3;
 type PlanKey = "1" | "2" | "3";
@@ -75,6 +76,8 @@ interface Props {
   nowIso: string;
   acceptance: Acceptance | null;
   initialPlan?: Plan;
+  /** When true (from the expediente's print link), open the print dialog. */
+  autoPrint?: boolean;
 }
 
 export default function ClientDocView({
@@ -83,10 +86,26 @@ export default function ClientDocView({
   nowIso,
   acceptance,
   initialPlan,
+  autoPrint,
 }: Props) {
-  const [plan, setPlan] = useState<Plan>(
+  const [plan, setPlanState] = useState<Plan>(
     initialPlan ?? vm.condicion.planSeleccionado,
   );
+  const tel = useTelemetria(token);
+  const setPlan = useCallback(
+    (p: Plan) => {
+      setPlanState(p);
+      tel.planCambiado(p);
+    },
+    [tel],
+  );
+
+  useEffect(() => {
+    if (autoPrint && typeof window !== "undefined") {
+      const t = setTimeout(() => window.print(), 400);
+      return () => clearTimeout(t);
+    }
+  }, [autoPrint]);
 
   // Once the condition has expired the discount applies nowhere — every
   // displayed price reverts to list, so the client never sees a price they
@@ -119,6 +138,7 @@ export default function ClientDocView({
         token={token}
         nowIso={nowIso}
         acceptance={acceptance}
+        onObservacion={tel.observacionEscrita}
       />
     </article>
   );
@@ -288,8 +308,36 @@ function Fugas({ vm }: { vm: ClientDocVM }) {
 
 // --- 5. El diagnóstico --------------------------------------------------
 
+function MaturityBar({
+  hoy,
+  meta,
+  sector,
+}: {
+  hoy: number;
+  meta?: number;
+  sector?: number;
+}) {
+  return (
+    <div className="cd-bar-wrap">
+      <div className="cd-bar">
+        {[0, 1, 2, 3].map((seg) => {
+          const cls =
+            seg < hoy ? "seg hoy" : meta != null && seg < meta ? "seg meta" : "seg";
+          return <span className={cls} key={seg} />;
+        })}
+      </div>
+      {typeof sector === "number" && (
+        <span
+          className="cd-bar-sector"
+          style={{ left: `${(sector / 4) * 100}%` }}
+          title={`Promedio del sector: ${sector}`}
+        />
+      )}
+    </div>
+  );
+}
+
 function Diagnostico({ vm }: { vm: ClientDocVM }) {
-  const sector = vm.benchmarkSector;
   return (
     <section className="cd-section cd-diagnostico">
       <h2 className="cd-h2">El diagnóstico</h2>
@@ -297,30 +345,17 @@ function Diagnostico({ vm }: { vm: ClientDocVM }) {
         <div className="cd-nota-letra">{vm.nota.letra}</div>
         <div className="cd-nota-puntos">{vm.nota.puntos}/100</div>
       </div>
-      {typeof sector === "number" && (
-        <div className="cd-benchmark">
-          <div className="cd-benchmark-track">
-            <div className="cd-benchmark-fill" style={{ width: `${vm.nota.puntos}%` }} />
-            <div className="cd-benchmark-mark" style={{ left: `${sector}%` }} />
-          </div>
-          <div className="cd-benchmark-label">
-            <span>Su nota: {vm.nota.puntos}</span>
-            <span>Promedio del sector: {sector}</span>
-          </div>
-        </div>
-      )}
       <div className="cd-madurez">
         {vm.madurez.map((m, i) => (
           <div className="cd-madurez-row" key={i}>
             <div className="cd-madurez-nombre">{m.m}</div>
-            <div className="cd-bar">
-              {[0, 1, 2, 3].map((seg) => (
-                <span className={seg < m.hoy ? "seg hoy" : "seg"} key={seg} />
-              ))}
-            </div>
+            <MaturityBar hoy={m.hoy} sector={vm.benchmarkModulos?.[m.m]} />
           </div>
         ))}
       </div>
+      {vm.benchmarkModulos && (
+        <p className="cd-bar-legend">La línea marca el promedio del sector.</p>
+      )}
     </section>
   );
 }
@@ -507,22 +542,20 @@ function ADondeLlega({ vm, plan }: { vm: ClientDocVM; plan: Plan }) {
         </div>
       </div>
       <div className="cd-madurez">
-        {vm.madurez.map((m, i) => {
-          const meta = m.p[key];
-          return (
-            <div className="cd-madurez-row" key={i}>
-              <div className="cd-madurez-nombre">{m.m}</div>
-              <div className="cd-bar">
-                {[0, 1, 2, 3].map((seg) => {
-                  const cls =
-                    seg < m.hoy ? "seg hoy" : seg < meta ? "seg meta" : "seg";
-                  return <span className={cls} key={seg} />;
-                })}
-              </div>
-            </div>
-          );
-        })}
+        {vm.madurez.map((m, i) => (
+          <div className="cd-madurez-row" key={i}>
+            <div className="cd-madurez-nombre">{m.m}</div>
+            <MaturityBar
+              hoy={m.hoy}
+              meta={m.p[key]}
+              sector={vm.benchmarkModulos?.[m.m]}
+            />
+          </div>
+        ))}
       </div>
+      {vm.benchmarkModulos && (
+        <p className="cd-bar-legend">La línea marca el promedio del sector.</p>
+      )}
     </section>
   );
 }
@@ -552,12 +585,14 @@ function Inversion({
   token,
   nowIso,
   acceptance,
+  onObservacion,
 }: {
   vm: ClientDocVM;
   plan: Plan;
   token: string;
   nowIso: string;
   acceptance: Acceptance | null;
+  onObservacion: () => void;
 }) {
   const key = String(plan) as PlanKey;
   const bloque = bloquePrecioEfectivo(
@@ -646,7 +681,10 @@ function Inversion({
           <textarea
             id="observaciones"
             value={observaciones}
-            onChange={(e) => setObservaciones(e.target.value)}
+            onChange={(e) => {
+              if (observaciones === "" && e.target.value !== "") onObservacion();
+              setObservaciones(e.target.value);
+            }}
             rows={3}
           />
           <p className="cd-accept-notice">

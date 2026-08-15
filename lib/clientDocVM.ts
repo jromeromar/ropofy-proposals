@@ -5,7 +5,7 @@
  * can leak into the bundle or the hydration payload.
  */
 
-import { bandsFrom, type Band } from "./mapLayout";
+import { bandsFrom, benchmarkPorModulo, type Band } from "./mapLayout";
 import type {
   ClientDocument,
   AsIs,
@@ -54,7 +54,8 @@ export interface ClientDocVM {
   fugaDominante: FugaVM | null;
   fugasResto: FugaVM[];
   nota: { letra: LetraNota; puntos: number };
-  benchmarkSector: number | null;
+  /** Sector average maturity per module (0-4), or null. */
+  benchmarkModulos: Record<string, number> | null;
   madurez: MadurezVM[];
   bands: Band<ClientComp>[];
   integraciones: Array<[string, string, EtiquetaIntegracion]>;
@@ -126,7 +127,6 @@ export function toClientDocVM(doc: ClientDocument, sentAt: string): ClientDocVM 
     moneda?: string;
     precio_por_plan?: { "1": number; "2": number; "3": number };
   };
-  const benchmark = (doc.benchmark as { sector?: number } | undefined) ?? undefined;
   const nota = doc.nota as { letra: LetraNota; puntos: number };
   const madurezRaw = (doc.madurez ?? []) as Array<Record<string, unknown>>;
 
@@ -140,8 +140,7 @@ export function toClientDocVM(doc: ClientDocument, sentAt: string): ClientDocVM 
     fugaDominante: dominanteRaw ? toFugaVM(dominanteRaw) : null,
     fugasResto: restoRaw.map(toFugaVM),
     nota: { letra: nota.letra, puntos: nota.puntos },
-    benchmarkSector:
-      typeof benchmark?.sector === "number" ? benchmark.sector : null,
+    benchmarkModulos: benchmarkPorModulo(doc.benchmark),
     madurez: madurezRaw.map((m) => ({
       m: String(m.m ?? ""),
       hoy: Number(m.hoy ?? 0),

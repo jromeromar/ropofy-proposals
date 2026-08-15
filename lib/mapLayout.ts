@@ -88,6 +88,24 @@ export interface BandLayout {
  * Build the ordered, numbered bands. Only bands that actually hold at least
  * one component are returned; numbering follows the canonical band order.
  */
+/**
+ * Parse the pipeline's per-module `benchmark` ({ "Gestión": 1.3, ... }, values
+ * on the 0-4 maturity scale) into a clean map. Returns null when the block is
+ * absent or not the expected shape — the renderer then shows no sector marker
+ * rather than inventing one. (The old fixture's { sector, fuente } shape is
+ * simply ignored, so a legacy file degrades quietly.)
+ */
+export function benchmarkPorModulo(
+  benchmark: unknown,
+): Record<string, number> | null {
+  if (typeof benchmark !== "object" || benchmark === null) return null;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(benchmark)) {
+    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 /** Anything that can be placed in a band and flagged as an AI component. */
 export interface BandItem {
   journey: number;

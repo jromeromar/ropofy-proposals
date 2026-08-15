@@ -7,7 +7,7 @@
  * sent version addressable by an unguessable token.
  */
 
-import { storage } from "@/lib/storage";
+import { storage, hashData } from "@/lib/storage";
 import { construirCondicion, buildClientDocument } from "@/lib/clientDocument";
 import { requiereAprobacion } from "@/lib/pricing";
 import { formatPrice } from "@/lib/rules";
@@ -103,6 +103,7 @@ export async function enviarPropuesta(input: EnviarInput): Promise<EnviarResult>
     motivo: motivo || null,
     condicion,
     clientDocument,
+    sourceHash: hashData(data),
   });
 
   const resumen = [

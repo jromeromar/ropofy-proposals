@@ -9,7 +9,7 @@
  * into the client bundle or the hydration payload because it never leaves here.
  */
 
-import { buildLayout, type BandName } from "./mapLayout";
+import { buildLayout, benchmarkPorModulo, type BandName } from "./mapLayout";
 import type {
   Proposal,
   AsIs,
@@ -54,7 +54,8 @@ export interface PresentacionVM {
   fugaDominante: { titulo: string; valor: string } | null;
   fugasResto: FugaVM[];
   nota: { letra: LetraNota; puntos: number };
-  benchmarkSector: number | null;
+  /** Sector average maturity per module (0-4), or null. */
+  benchmarkModulos: Record<string, number> | null;
   bands: BandVM[];
   integraciones: Array<[string, string, EtiquetaIntegracion]>;
   noAplican: Array<[string, string]>;
@@ -82,8 +83,6 @@ export function toPresentacionVM(proposal: Proposal): PresentacionVM {
       dependeDeTercero: Boolean(f.depende_de_tercero),
     }));
 
-  const benchmark = (proposal as { benchmark?: { sector?: number } }).benchmark;
-
   return {
     cliente: proposal.cliente,
     titular: proposal.titular,
@@ -93,7 +92,9 @@ export function toPresentacionVM(proposal: Proposal): PresentacionVM {
       : null,
     fugasResto,
     nota: { letra: proposal.nota.letra, puntos: proposal.nota.puntos },
-    benchmarkSector: typeof benchmark?.sector === "number" ? benchmark.sector : null,
+    benchmarkModulos: benchmarkPorModulo(
+      (proposal as { benchmark?: unknown }).benchmark,
+    ),
     bands,
     integraciones: proposal.integraciones,
     noAplican: proposal.no_aplican,

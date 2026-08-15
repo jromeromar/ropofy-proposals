@@ -11,6 +11,10 @@ import { headers } from "next/headers";
 import { storage } from "@/lib/storage";
 import { bloquePrecioEfectivo } from "@/lib/condition";
 import { formatVigencia } from "@/lib/clientDocument";
+import {
+  construirPayloadAceptacion,
+  dispararWebhookAceptacion,
+} from "@/lib/webhook";
 import type { Acceptance } from "@/lib/types";
 
 export interface AceptarInput {
@@ -94,5 +98,24 @@ export async function aceptarPropuesta(
     }
     return { ok: false, errors: ["El enlace no es válido."] };
   }
+
+  // Fire-and-forget webhook — never blocks or delays the confirmation.
+  try {
+    const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    const enlace = host ? `${proto}://${host}/p/${input.token}` : `/p/${input.token}`;
+    dispararWebhookAceptacion(
+      construirPayloadAceptacion({
+        propuestaId: resolved.proposal.id,
+        cliente: resolved.proposal.cliente,
+        sentVersion: res.sentVersion,
+        acceptance,
+        enlace,
+      }),
+    );
+  } catch {
+    /* webhook must never affect the client's confirmation */
+  }
+
   return { ok: true, fecha: formatVigencia(acceptance.at) };
 }

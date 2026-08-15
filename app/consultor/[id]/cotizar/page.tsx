@@ -51,6 +51,7 @@ export default async function CotizarPage({
       precioPorPlan={cc.precio_por_plan}
       limite={cc.limite_descuento_sin_aprobacion}
       planInicial={planInicial}
+      versionesEnviadas={stored.sentVersions.length}
     />
   );
 }

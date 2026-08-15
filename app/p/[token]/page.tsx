@@ -12,10 +12,13 @@ export const dynamic = "force-dynamic";
  */
 export default async function ClientDocumentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ print?: string }>;
 }) {
   const { token } = await params;
+  const { print } = await searchParams;
   const resolved = await storage.getByToken(token);
 
   if (!resolved) {
@@ -40,6 +43,7 @@ export default async function ClientDocumentPage({
         token={token}
         nowIso={nowIso}
         acceptance={sv.acceptance}
+        autoPrint={print === "1"}
       />
     </main>
   );

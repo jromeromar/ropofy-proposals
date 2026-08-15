@@ -117,6 +117,20 @@
   font-size: 13px;
   word-break: break-all;
 }
+.cot-confirm {
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 14px;
+}
+.cot-send-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
 .cot-frozen-note {
   margin: 0;
   padding: 12px 14px;

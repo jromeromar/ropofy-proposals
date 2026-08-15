@@ -338,6 +338,22 @@
   background: var(--color-primary);
   border-color: var(--color-primary);
 }
+.cd-bar-wrap {
+  position: relative;
+}
+.cd-bar-sector {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--color-primary-dark);
+  transform: translateX(-1px);
+}
+.cd-bar-legend {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 12px 0 0;
+}
 
 /* 6. Clave de lectura */
 .cd-clave {

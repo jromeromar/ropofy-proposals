@@ -20,6 +20,7 @@ import type {
   AppliedCondition,
   ClientDocument,
   Acceptance,
+  TelemetryEvent,
 } from "./types";
 
 /** What the send flow supplies; storage assigns version, sentAt and token. */
@@ -30,7 +31,17 @@ export interface SentVersionInput {
   motivo: string | null;
   condicion: AppliedCondition;
   clientDocument: ClientDocument;
+  /** Hash of the draft data at send time (to detect later unsent edits). */
+  sourceHash: string;
 }
+
+/** Deterministic hash of a proposal's draft data, for drift detection. */
+export function hashData(data: unknown): string {
+  return crypto.createHash("sha1").update(JSON.stringify(data)).digest("hex");
+}
+
+/** Cap on stored telemetry events per version (backstop against floods). */
+const MAX_EVENTS = 1000;
 
 /** A token resolved to its owning proposal and frozen version. */
 export interface TokenResolution {
@@ -56,11 +67,15 @@ export interface ProposalStorage {
    * the same version server-side (never just hidden in the UI).
    */
   aceptarVersion(token: string, acceptance: Acceptance): Promise<AcceptResult>;
+  /** Append a telemetry event to a version. Rejects unknown tokens. */
+  registrarEvento(token: string, event: TelemetryEvent): Promise<EventResult>;
 }
 
 export type AcceptResult =
   | { ok: true; sentVersion: SentVersion }
   | { ok: false; reason: "not_found" | "already_accepted" };
+
+export type EventResult = { ok: true } | { ok: false; reason: "not_found" };
 
 // --- helpers ------------------------------------------------------------
 
@@ -122,6 +137,8 @@ function buildSentVersion(
     clientDocument: input.clientDocument,
     estado: "enviada",
     acceptance: null,
+    events: [],
+    sourceHash: input.sourceHash,
   };
 }
 
@@ -129,6 +146,10 @@ function buildSentVersion(
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DATA_FILE = path.join(DATA_DIR, "proposals.json");
+
+// Under Vitest, stay purely in-memory: each test file gets its own isolated
+// store and there is no shared file for parallel workers to corrupt.
+const SKIP_FILE = Boolean(process.env.VITEST);
 
 /**
  * Local-dev backend. The Map is the source of truth within a process; the
@@ -143,6 +164,7 @@ class MemoryFileStorage implements ProposalStorage {
   private async load(): Promise<void> {
     if (this.loaded) return;
     this.loaded = true;
+    if (SKIP_FILE) return;
     try {
       const raw = await fs.readFile(DATA_FILE, "utf8");
       const parsed = JSON.parse(raw) as StoredProposal[];
@@ -152,6 +174,8 @@ class MemoryFileStorage implements ProposalStorage {
         for (const v of rec.sentVersions) {
           if (!v.estado) v.estado = "enviada";
           if (v.acceptance === undefined) v.acceptance = null;
+          if (!Array.isArray(v.events)) v.events = [];
+          if (typeof v.sourceHash !== "string") v.sourceHash = "";
         }
         this.map.set(rec.id, rec);
       }
@@ -161,6 +185,7 @@ class MemoryFileStorage implements ProposalStorage {
   }
 
   private async persist(): Promise<void> {
+    if (SKIP_FILE) return;
     try {
       await fs.mkdir(DATA_DIR, { recursive: true });
       const all = Array.from(this.map.values());
@@ -248,6 +273,23 @@ class MemoryFileStorage implements ProposalStorage {
       proposal.estado = "aceptada";
       await this.persist();
       return { ok: true, sentVersion };
+    }
+    return { ok: false, reason: "not_found" };
+  }
+
+  async registrarEvento(
+    token: string,
+    event: TelemetryEvent,
+  ): Promise<EventResult> {
+    await this.load();
+    for (const proposal of this.map.values()) {
+      const sentVersion = proposal.sentVersions.find((v) => v.token === token);
+      if (!sentVersion) continue;
+      sentVersion.events.push(event);
+      if (sentVersion.events.length > MAX_EVENTS)
+        sentVersion.events = sentVersion.events.slice(-MAX_EVENTS);
+      await this.persist();
+      return { ok: true };
     }
     return { ok: false, reason: "not_found" };
   }
@@ -372,6 +414,23 @@ class KvStorage implements ProposalStorage {
     await kv.set(kvKey(proposal.id), proposal);
     return { ok: true, sentVersion };
   }
+
+  async registrarEvento(
+    token: string,
+    event: TelemetryEvent,
+  ): Promise<EventResult> {
+    const kv = await this.clientPromise;
+    const resolved = await this.getByToken(token);
+    if (!resolved) return { ok: false, reason: "not_found" };
+    const { proposal } = resolved;
+    const sentVersion = proposal.sentVersions.find((v) => v.token === token)!;
+    if (!Array.isArray(sentVersion.events)) sentVersion.events = [];
+    sentVersion.events.push(event);
+    if (sentVersion.events.length > MAX_EVENTS)
+      sentVersion.events = sentVersion.events.slice(-MAX_EVENTS);
+    await kv.set(kvKey(proposal.id), proposal);
+    return { ok: true };
+  }
 }
 
 // --- backend selection --------------------------------------------------
@@ -399,4 +458,5 @@ export const storage: ProposalStorage = {
   getByToken: (token) => getStorage().getByToken(token),
   aceptarVersion: (token, acceptance) =>
     getStorage().aceptarVersion(token, acceptance),
+  registrarEvento: (token, event) => getStorage().registrarEvento(token, event),
 };

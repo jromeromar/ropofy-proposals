@@ -23,6 +23,7 @@ interface Props {
   precioPorPlan: { "1": number; "2": number; "3": number };
   limite: number;
   planInicial: Plan;
+  versionesEnviadas: number;
 }
 
 export default function CotizarPanel({
@@ -32,6 +33,7 @@ export default function CotizarPanel({
   precioPorPlan,
   limite,
   planInicial,
+  versionesEnviadas,
 }: Props) {
   const [plan, setPlan] = useState<Plan>(planInicial);
   const [descuentoStr, setDescuentoStr] = useState("");
@@ -40,6 +42,7 @@ export default function CotizarPanel({
   const [aprobador, setAprobador] = useState("");
   const [motivo, setMotivo] = useState("");
   const [sending, setSending] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [result, setResult] = useState<Extract<EnviarResult, { ok: true }> | null>(
     null,
@@ -202,10 +205,38 @@ export default function CotizarPanel({
             </div>
           )}
 
-          <div>
-            <button className="btn btn-primary" onClick={handleSend} disabled={!canSend}>
-              {sending ? "Enviando…" : "Enviar propuesta"}
+          {confirmando && versionesEnviadas > 0 && (
+            <div className="cot-confirm" role="alert">
+              Ya existe v{versionesEnviadas} enviada. Se generará v
+              {versionesEnviadas + 1} con la condición nueva; la anterior sigue
+              viva en su enlace.
+            </div>
+          )}
+
+          <div className="cot-send-row">
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                if (versionesEnviadas > 0 && !confirmando) setConfirmando(true);
+                else handleSend();
+              }}
+              disabled={!canSend}
+            >
+              {sending
+                ? "Enviando…"
+                : confirmando || versionesEnviadas === 0
+                  ? "Confirmar y enviar"
+                  : "Enviar propuesta"}
             </button>
+            {confirmando && !sending && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setConfirmando(false)}
+              >
+                Cancelar
+              </button>
+            )}
           </div>
         </div>
 

@@ -585,6 +585,22 @@
   background: var(--color-primary);
   border-color: var(--color-primary);
 }
+.pv-bar-wrap {
+  position: relative;
+}
+.pv-bar-sector {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--color-primary-dark);
+  transform: translateX(-1px);
+}
+.pv-bar-legend {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 12px 0 0;
+}
 
 /* --- 8. Cierre ---------------------------------------------------------- */
 
