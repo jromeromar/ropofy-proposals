@@ -212,6 +212,53 @@ input:focus {
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border);
 }
+.badge-enviada {
+  background: #eef2ff;
+  color: #3730a3;
+  border-color: #c7d2fe;
+}
+.badge-aceptada {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+.badge-expirada {
+  background: #fff7ed;
+  color: #9a3412;
+  border-color: #fed7aa;
+}
+.version-accept {
+  margin-top: 4px;
+}
+
+.list-item-block {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-2);
+}
+.versions {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3) 0 0;
+  border-top: 1px solid var(--color-border);
+}
+.version-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-1) 0;
+}
+.version-link {
+  font-size: 13px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-primary);
+}
 
 /* Acento lima, SOLO para detalles pequeños. */
 .accent-dot {

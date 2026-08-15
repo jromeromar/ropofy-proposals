@@ -18,7 +18,9 @@ function clone<T>(v: T): T {
 }
 
 describe("validateProposal", () => {
-  it("acepta el fixture contract-complete", () => {
+  // ALARMA DE CONTRATO: el fixture ES el propuesta.json real del pipeline.
+  // Si el contrato y la app se separan, esta prueba grita primero.
+  it("acepta el propuesta.json real (fixture) con CERO errores", () => {
     const result = validateProposal(loadFixture());
     expect(result.errors).toEqual([]);
     expect(result.ok).toBe(true);
@@ -30,6 +32,18 @@ describe("validateProposal", () => {
     const result = validateProposal(p);
     expect(result.ok).toBe(false);
     expect(result.errors.some((e) => e.includes("nota"))).toBe(true);
+  });
+
+  it("rechaza depende_de_tercero booleano en una fuga mitigable (debe ser texto)", () => {
+    const p = clone(loadFixture());
+    const mitigable = p.fugas.find((f) => f.estado === "mitigable");
+    expect(mitigable).toBeDefined();
+    (mitigable as Record<string, unknown>).depende_de_tercero = true;
+    const result = validateProposal(p);
+    expect(result.ok).toBe(false);
+    expect(
+      result.errors.some((e) => e.includes("depende_de_tercero")),
+    ).toBe(true);
   });
 
   it("rechaza cuando dos fugas son dominantes", () => {

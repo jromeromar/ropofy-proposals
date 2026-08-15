@@ -3,8 +3,15 @@
  *
  * Pure function: no I/O, no throwing. It reports EVERY problem it finds
  * (not fail-fast) so the consultant fixes the whole file in one pass.
- * All messages are in Spanish; each names exactly which block is missing
- * or malformed.
+ *
+ * Hardening contract:
+ *  - `null` is treated the same as an absent key for optional fields.
+ *  - enum values (estado, plan, vis, etiqueta, letra) are trimmed before
+ *    comparison, so stray whitespace never rejects a valid value.
+ *  - when a field has the wrong TYPE, the message says which type arrived
+ *    ("«cliente» debe ser texto y llegó un objeto").
+ *  - every message includes the offending VALUE it actually read.
+ * All messages are in Spanish.
  */
 
 const PLANES = ["fundamental", "avanzado", "inteligente"];
@@ -26,13 +33,10 @@ export interface ValidationResult {
   errors: string[];
 }
 
-// --- small predicates ---------------------------------------------------
+// --- type helpers -------------------------------------------------------
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-function isNonEmptyString(v: unknown): v is string {
-  return typeof v === "string" && v.trim().length > 0;
 }
 function isString(v: unknown): v is string {
   return typeof v === "string";
@@ -43,12 +47,118 @@ function isInt(v: unknown): v is number {
 function isNumber(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v);
 }
-/** A [label, note] pair: array of two strings. */
+/** Optional keys: null and undefined both mean "absent". */
+function isAbsent(v: unknown): boolean {
+  return v === null || v === undefined;
+}
+/** Spanish name of the runtime type that arrived. */
+function tipoEs(v: unknown): string {
+  if (v === null) return "nulo";
+  if (v === undefined) return "ausente";
+  if (Array.isArray(v)) return "un arreglo";
+  switch (typeof v) {
+    case "string":
+      return "texto";
+    case "number":
+      return "un número";
+    case "boolean":
+      return "un booleano";
+    case "object":
+      return "un objeto";
+    default:
+      return typeof v;
+  }
+}
+/** A short, safe rendering of the offending value for a message. */
+function muestra(v: unknown): string {
+  if (v === undefined) return "ausente";
+  if (v === null) return "nulo";
+  if (typeof v === "string") {
+    const s = v.length > 40 ? `${v.slice(0, 40)}…` : v;
+    return `«${s}»`;
+  }
+  try {
+    const s = JSON.stringify(v);
+    return s.length > 60 ? `${s.slice(0, 60)}…` : s;
+  } catch {
+    return String(v);
+  }
+}
+function trimEnum(v: unknown): string | null {
+  return typeof v === "string" ? v.trim() : null;
+}
+
+// --- reusable field checkers (push type-aware, value-bearing messages) --
+
+function checkTexto(v: unknown, nombre: string, errors: string[]): boolean {
+  if (typeof v !== "string") {
+    errors.push(`El bloque «${nombre}» debe ser texto y llegó ${tipoEs(v)} (${muestra(v)}).`);
+    return false;
+  }
+  if (v.trim() === "") {
+    errors.push(`El bloque «${nombre}» no puede estar vacío.`);
+    return false;
+  }
+  return true;
+}
+
+function checkEnum(
+  v: unknown,
+  nombre: string,
+  allowed: string[],
+  errors: string[],
+): void {
+  if (typeof v !== "string") {
+    errors.push(
+      `El bloque «${nombre}» debe ser texto (uno de: ${allowed.join(", ")}) y llegó ${tipoEs(v)} (${muestra(v)}).`,
+    );
+    return;
+  }
+  if (!allowed.includes(v.trim())) {
+    errors.push(
+      `El bloque «${nombre}» tiene un valor inválido (${muestra(v)}); debe ser uno de: ${allowed.join(", ")}.`,
+    );
+  }
+}
+
+function checkRango(
+  v: unknown,
+  nombre: string,
+  min: number,
+  max: number,
+  errors: string[],
+): void {
+  if (!isNumber(v)) {
+    errors.push(`El bloque «${nombre}» debe ser un número y llegó ${tipoEs(v)} (${muestra(v)}).`);
+    return;
+  }
+  if (v < min || v > max) {
+    errors.push(`El bloque «${nombre}» debe estar entre ${min} y ${max} (llegó ${v}).`);
+  }
+}
+
+function checkEntero(
+  v: unknown,
+  nombre: string,
+  errors: string[],
+  min?: number,
+): void {
+  if (!isNumber(v)) {
+    errors.push(`El bloque «${nombre}» debe ser un entero y llegó ${tipoEs(v)} (${muestra(v)}).`);
+    return;
+  }
+  if (!Number.isInteger(v)) {
+    errors.push(`El bloque «${nombre}» debe ser un entero sin decimales (llegó ${v}).`);
+    return;
+  }
+  if (min !== undefined && v < min) {
+    errors.push(`El bloque «${nombre}» debe ser mayor o igual a ${min} (llegó ${v}).`);
+  }
+}
+
+/** A [label, note] pair: array of exactly two strings. */
 function isPair(v: unknown): v is [string, string] {
   return Array.isArray(v) && v.length === 2 && isString(v[0]) && isString(v[1]);
-}
-function inRange(v: unknown, min: number, max: number): boolean {
-  return isNumber(v) && v >= min && v <= max;
 }
 
 // --- main ---------------------------------------------------------------
@@ -59,56 +169,35 @@ export function validateProposal(input: unknown): ValidationResult {
   if (!isPlainObject(input)) {
     return {
       ok: false,
-      errors: ["El archivo no es un objeto JSON válido de propuesta."],
+      errors: [`El archivo no es un objeto JSON válido de propuesta (llegó ${tipoEs(input)}).`],
     };
   }
   const p = input;
 
-  // cliente, titular, resumen
-  if (!isNonEmptyString(p.cliente))
-    errors.push('Falta o es inválido el bloque «cliente» (debe ser un texto no vacío).');
-  if (!isNonEmptyString(p.titular))
-    errors.push('Falta o es inválido el bloque «titular» (debe ser un texto no vacío).');
-  if (!isNonEmptyString(p.resumen))
-    errors.push('Falta o es inválido el bloque «resumen» (debe ser un texto no vacío).');
+  checkTexto(p.cliente, "cliente", errors);
+  checkTexto(p.titular, "titular", errors);
+  checkTexto(p.resumen, "resumen", errors);
+  checkEnum(p.modo, "modo", ["A", "B"], errors);
 
-  // modo
-  if (p.modo !== "A" && p.modo !== "B")
-    errors.push('El bloque «modo» debe ser "A" o "B".');
-
-  // as_is
   validateAsIs(p.as_is, errors);
-
-  // fugas
   validateFugas(p.fugas, errors);
-
-  // madurez
   validateMadurez(p.madurez, errors);
-
-  // nota
   validateNota(p.nota, errors);
-
-  // componentes
   validateComponentes(p.componentes, errors);
-
-  // no_aplican
   validateNoAplican(p.no_aplican, errors);
-
-  // integraciones
   validateIntegraciones(p.integraciones, errors);
-
-  // multiplicador_calculado
   validateMultiplicador(p.multiplicador_calculado, errors);
-
-  // condicion_comercial
   validateCondicionComercial(p.condicion_comercial, errors);
-
-  // plan_recomendado
   validatePlanRecomendado(p.plan_recomendado, errors);
 
-  // advertencias
-  if (!Array.isArray(p.advertencias) || !p.advertencias.every(isString))
-    errors.push('El bloque «advertencias» debe ser un arreglo de textos.');
+  if (!Array.isArray(p.advertencias)) {
+    errors.push(`El bloque «advertencias» debe ser un arreglo y llegó ${tipoEs(p.advertencias)}.`);
+  } else {
+    p.advertencias.forEach((a, i) => {
+      if (!isString(a))
+        errors.push(`El elemento «advertencias[${i}]» debe ser texto y llegó ${tipoEs(a)}.`);
+    });
+  }
 
   return { ok: errors.length === 0, errors };
 }
@@ -117,27 +206,32 @@ export function validateProposal(input: unknown): ValidationResult {
 
 function validateAsIs(asIs: unknown, errors: string[]): void {
   if (!isPlainObject(asIs)) {
-    errors.push('Falta o es inválido el bloque «as_is».');
+    errors.push(`El bloque «as_is» debe ser un objeto y llegó ${tipoEs(asIs)}.`);
     return;
   }
-  const columnas: Array<keyof typeof asIs> = [
-    "de_donde_llegan",
-    "por_donde_pasan",
-    "donde_queda",
-  ];
+  const columnas = ["de_donde_llegan", "por_donde_pasan", "donde_queda"] as const;
   for (const col of columnas) {
     const val = asIs[col];
-    if (!Array.isArray(val) || !val.every(isPair)) {
-      errors.push(
-        `El bloque «as_is.${String(col)}» debe ser un arreglo de pares [etiqueta, nota].`,
-      );
+    if (!Array.isArray(val)) {
+      errors.push(`El bloque «as_is.${col}» debe ser un arreglo y llegó ${tipoEs(val)}.`);
+      continue;
     }
+    val.forEach((par, i) => {
+      if (!isPair(par))
+        errors.push(
+          `El elemento «as_is.${col}[${i}]» debe ser un par [etiqueta, nota] de textos (llegó ${muestra(par)}).`,
+        );
+    });
   }
 }
 
 function validateFugas(fugas: unknown, errors: string[]): void {
-  if (!Array.isArray(fugas) || fugas.length === 0) {
-    errors.push('Falta o es inválido el bloque «fugas» (debe ser un arreglo no vacío).');
+  if (!Array.isArray(fugas)) {
+    errors.push(`El bloque «fugas» debe ser un arreglo y llegó ${tipoEs(fugas)}.`);
+    return;
+  }
+  if (fugas.length === 0) {
+    errors.push("El bloque «fugas» no puede estar vacío.");
     return;
   }
 
@@ -145,29 +239,41 @@ function validateFugas(fugas: unknown, errors: string[]): void {
   fugas.forEach((f, i) => {
     const etiqueta = `fugas[${i}]`;
     if (!isPlainObject(f)) {
-      errors.push(`El elemento «${etiqueta}» no es un objeto válido.`);
+      errors.push(`El elemento «${etiqueta}» debe ser un objeto y llegó ${tipoEs(f)}.`);
       return;
     }
     if (f.dominante === true) dominantes++;
-    if (!isNonEmptyString(f.id))
-      errors.push(`El elemento «${etiqueta}» no tiene «id» válido.`);
-    if (!isNonEmptyString(f.titulo))
-      errors.push(`El elemento «${etiqueta}» no tiene «titulo» válido.`);
-    if (typeof f.estado !== "string" || !ESTADOS_FUGA.includes(f.estado))
-      errors.push(
-        `El elemento «${etiqueta}» tiene «estado» inválido (debe ser activa, mitigable o fuera_de_alcance).`,
-      );
+
+    checkTexto(f.id, `${etiqueta}.id`, errors);
+    checkTexto(f.titulo, `${etiqueta}.titulo`, errors);
+
+    const estado = trimEnum(f.estado);
+    checkEnum(f.estado, `${etiqueta}.estado`, ESTADOS_FUGA, errors);
+
     if (
       !isPlainObject(f.cuantificacion) ||
-      !("valor" in f.cuantificacion) ||
-      f.cuantificacion.valor === null ||
-      f.cuantificacion.valor === undefined
-    )
-      errors.push(`El elemento «${etiqueta}» no tiene «cuantificacion.valor».`);
-    if (f.estado === "mitigable" && typeof f.depende_de_tercero !== "boolean")
+      isAbsent((f.cuantificacion as Record<string, unknown>).valor)
+    ) {
       errors.push(
-        `El elemento «${etiqueta}» tiene estado mitigable pero le falta «depende_de_tercero».`,
+        `El elemento «${etiqueta}» no tiene «cuantificacion.valor» (llegó ${muestra(f.cuantificacion)}).`,
       );
+    }
+
+    // depende_de_tercero: on a mitigable fuga this MUST be a non-empty string
+    // — the third party's name, which the client document interpolates. A
+    // boolean (as the old fixture invented) is a type error.
+    if (estado === "mitigable") {
+      const dep = f.depende_de_tercero;
+      if (typeof dep !== "string") {
+        errors.push(
+          `El elemento «${etiqueta}.depende_de_tercero» debe ser el texto del tercero cuando el estado es mitigable, y llegó ${tipoEs(dep)} (${muestra(dep)}).`,
+        );
+      } else if (dep.trim() === "") {
+        errors.push(
+          `El elemento «${etiqueta}.depende_de_tercero» no puede estar vacío cuando el estado es mitigable.`,
+        );
+      }
+    }
   });
 
   if (dominantes !== 1)
@@ -178,7 +284,7 @@ function validateFugas(fugas: unknown, errors: string[]): void {
 
 function validateMadurez(madurez: unknown, errors: string[]): void {
   if (!Array.isArray(madurez)) {
-    errors.push('Falta o es inválido el bloque «madurez» (debe ser un arreglo).');
+    errors.push(`El bloque «madurez» debe ser un arreglo y llegó ${tipoEs(madurez)}.`);
     return;
   }
   if (madurez.length !== 7)
@@ -189,23 +295,17 @@ function validateMadurez(madurez: unknown, errors: string[]): void {
   madurez.forEach((m, i) => {
     const etiqueta = `madurez[${i}]`;
     if (!isPlainObject(m)) {
-      errors.push(`El elemento «${etiqueta}» no es un objeto válido.`);
+      errors.push(`El elemento «${etiqueta}» debe ser un objeto y llegó ${tipoEs(m)}.`);
       return;
     }
-    if (!isNonEmptyString(m.m))
-      errors.push(`El elemento «${etiqueta}» no tiene «m» válido.`);
-    if (!inRange(m.hoy, 0, 4))
-      errors.push(`El elemento «${etiqueta}» tiene «hoy» fuera de rango (0-4).`);
-    if (!isNonEmptyString(m.por_que))
-      errors.push(`El elemento «${etiqueta}» no tiene «por_que» válido.`);
+    checkTexto(m.m, `${etiqueta}.m`, errors);
+    checkRango(m.hoy, `${etiqueta}.hoy`, 0, 4, errors);
+    checkTexto(m.por_que, `${etiqueta}.por_que`, errors);
     if (!isPlainObject(m.p)) {
-      errors.push(`El elemento «${etiqueta}» no tiene el objeto «p» de planes.`);
+      errors.push(`El elemento «${etiqueta}.p» debe ser un objeto de planes y llegó ${tipoEs(m.p)}.`);
     } else {
       for (const plan of ["1", "2", "3"] as const) {
-        if (!inRange(m.p[plan], 0, 4))
-          errors.push(
-            `El elemento «${etiqueta}.p.${plan}» está ausente o fuera de rango (0-4).`,
-          );
+        checkRango(m.p[plan], `${etiqueta}.p.${plan}`, 0, 4, errors);
       }
     }
   });
@@ -213,156 +313,156 @@ function validateMadurez(madurez: unknown, errors: string[]): void {
 
 function validateNota(nota: unknown, errors: string[]): void {
   if (!isPlainObject(nota)) {
-    errors.push('Falta o es inválido el bloque «nota».');
+    errors.push(`El bloque «nota» es obligatorio y debe ser un objeto (llegó ${tipoEs(nota)}).`);
     return;
   }
-  if (!inRange(nota.puntos, 0, 100))
-    errors.push('El bloque «nota.puntos» debe ser un número entre 0 y 100.');
-  if (typeof nota.letra !== "string" || !LETRAS_NOTA.includes(nota.letra))
-    errors.push('El bloque «nota.letra» debe ser una letra entre A y F.');
+  checkRango(nota.puntos, "nota.puntos", 0, 100, errors);
+  checkEnum(nota.letra, "nota.letra", LETRAS_NOTA, errors);
 }
 
 function validateComponentes(componentes: unknown, errors: string[]): void {
   if (!isPlainObject(componentes)) {
-    errors.push('Falta o es inválido el bloque «componentes» (debe ser un objeto).');
+    errors.push(`El bloque «componentes» debe ser un objeto y llegó ${tipoEs(componentes)}.`);
     return;
   }
   for (const [id, comp] of Object.entries(componentes)) {
     const etiqueta = `componentes.${id}`;
     if (!isPlainObject(comp)) {
-      errors.push(`El componente «${etiqueta}» no es un objeto válido.`);
+      errors.push(`El componente «${etiqueta}» debe ser un objeto y llegó ${tipoEs(comp)}.`);
       continue;
     }
-    if (!isNonEmptyString(comp.nombre_cliente))
-      errors.push(`El componente «${etiqueta}» no tiene «nombre_cliente» válido.`);
-    if (typeof comp.plan !== "string" || !PLANES.includes(comp.plan))
-      errors.push(
-        `El componente «${etiqueta}» tiene «plan» inválido (debe ser fundamental, avanzado o inteligente).`,
-      );
-    if (!isInt(comp.instancias) || comp.instancias < 1)
-      errors.push(`El componente «${etiqueta}» debe tener «instancias» entera >= 1.`);
-    if (typeof comp.vis !== "string" || !VIS.includes(comp.vis))
-      errors.push(
-        `El componente «${etiqueta}» tiene «vis» inválido (debe ser front, back o ambos).`,
-      );
+    checkTexto(comp.nombre_cliente, `${etiqueta}.nombre_cliente`, errors);
+    checkEnum(comp.plan, `${etiqueta}.plan`, PLANES, errors);
+    checkEntero(comp.instancias, `${etiqueta}.instancias`, errors, 1);
+    checkEnum(comp.vis, `${etiqueta}.vis`, VIS, errors);
     if (!isNumber(comp.journey))
-      errors.push(`El componente «${etiqueta}» debe tener «journey» numérico.`);
-    // cuota is optional; if present it must be a string or null.
-    if (
-      "cuota" in comp &&
-      comp.cuota !== null &&
-      typeof comp.cuota !== "string"
-    )
-      errors.push(`El componente «${etiqueta}» tiene «cuota» inválida (texto o null).`);
+      errors.push(
+        `El componente «${etiqueta}.journey» debe ser un número y llegó ${tipoEs(comp.journey)} (${muestra(comp.journey)}).`,
+      );
+    // cuota is optional; null/absent is fine. If present it must be a string.
+    if (!isAbsent(comp.cuota) && typeof comp.cuota !== "string")
+      errors.push(
+        `El componente «${etiqueta}.cuota» debe ser texto o estar ausente y llegó ${tipoEs(comp.cuota)}.`,
+      );
   }
 }
 
 function validateNoAplican(noAplican: unknown, errors: string[]): void {
   if (!Array.isArray(noAplican)) {
-    errors.push('Falta o es inválido el bloque «no_aplican» (debe ser un arreglo).');
+    errors.push(`El bloque «no_aplican» debe ser un arreglo y llegó ${tipoEs(noAplican)}.`);
     return;
   }
   noAplican.forEach((item, i) => {
     const etiqueta = `no_aplican[${i}]`;
     if (!isPair(item)) {
-      errors.push(`El elemento «${etiqueta}» debe ser un par [nombre, razon].`);
+      errors.push(`El elemento «${etiqueta}» debe ser un par [nombre, razon] de textos (llegó ${muestra(item)}).`);
       return;
     }
-    const [nombre] = item;
+    const nombre = item[0].trim();
     if (INTERNAL_ID_EXACT.test(nombre))
       errors.push(
-        `El elemento «${etiqueta}» expone un id interno como nombre («${nombre}»); debe estar en lenguaje del cliente.`,
+        `El elemento «${etiqueta}» expone un id interno como nombre (${muestra(item[0])}); debe estar en lenguaje del cliente.`,
       );
   });
 }
 
 function validateIntegraciones(integraciones: unknown, errors: string[]): void {
   if (!Array.isArray(integraciones)) {
-    errors.push('Falta o es inválido el bloque «integraciones» (debe ser un arreglo).');
+    errors.push(`El bloque «integraciones» debe ser un arreglo y llegó ${tipoEs(integraciones)}.`);
     return;
   }
   integraciones.forEach((item, i) => {
     const etiqueta = `integraciones[${i}]`;
-    if (
-      !Array.isArray(item) ||
-      item.length !== 3 ||
-      !isString(item[0]) ||
-      !isString(item[1])
-    ) {
-      errors.push(`El elemento «${etiqueta}» debe ser [nombre, nota, etiqueta].`);
+    if (!Array.isArray(item) || item.length !== 3 || !isString(item[0]) || !isString(item[1])) {
+      errors.push(
+        `El elemento «${etiqueta}» debe ser [nombre, nota, etiqueta] de textos (llegó ${muestra(item)}).`,
+      );
       return;
     }
-    if (typeof item[2] !== "string" || !ETIQUETAS_INTEGRACION.includes(item[2]))
-      errors.push(
-        `El elemento «${etiqueta}» tiene una etiqueta inválida (incluido, consumo_variable, licencia_del_cliente o desarrollo_a_cotizar).`,
-      );
+    checkEnum(item[2], `${etiqueta}.etiqueta`, ETIQUETAS_INTEGRACION, errors);
   });
 }
 
 function validateMultiplicador(mult: unknown, errors: string[]): void {
   if (!isPlainObject(mult)) {
-    errors.push('Falta o es inválido el bloque «multiplicador_calculado».');
+    errors.push(`El bloque «multiplicador_calculado» debe ser un objeto y llegó ${tipoEs(mult)}.`);
     return;
   }
   for (const plan of ["1", "2", "3"] as const) {
     const entry = mult[plan];
-    if (!isPlainObject(entry) || !isInt(entry.piezas) || !isInt(entry.config))
+    if (!isPlainObject(entry)) {
       errors.push(
-        `El bloque «multiplicador_calculado.${plan}» debe tener «piezas» y «config» enteros.`,
+        `El bloque «multiplicador_calculado.${plan}» debe ser un objeto y llegó ${tipoEs(entry)}.`,
       );
+      continue;
+    }
+    checkEntero(entry.piezas, `multiplicador_calculado.${plan}.piezas`, errors);
+    checkEntero(entry.config, `multiplicador_calculado.${plan}.config`, errors);
   }
 }
 
 function validateCondicionComercial(cc: unknown, errors: string[]): void {
   if (!isPlainObject(cc)) {
-    errors.push('Falta o es inválido el bloque «condicion_comercial».');
+    errors.push(`El bloque «condicion_comercial» debe ser un objeto y llegó ${tipoEs(cc)}.`);
     return;
   }
-  if (!isNonEmptyString(cc.moneda))
-    errors.push('El bloque «condicion_comercial.moneda» debe ser un texto.');
+  checkTexto(cc.moneda, "condicion_comercial.moneda", errors);
 
-  if (
-    !isPlainObject(cc.base_por_plan) ||
-    !["1", "2", "3"].every((k) => isNumber((cc.base_por_plan as Record<string, unknown>)[k]))
-  )
+  if (!isPlainObject(cc.base_por_plan)) {
     errors.push(
-      'El bloque «condicion_comercial.base_por_plan» debe tener valores numéricos para los planes 1, 2 y 3.',
+      `El bloque «condicion_comercial.base_por_plan» debe ser un objeto y llegó ${tipoEs(cc.base_por_plan)}.`,
     );
-
-  if (
-    !Array.isArray(cc.tramos_factor) ||
-    !cc.tramos_factor.every(
-      (t) => Array.isArray(t) && t.length === 2 && isNumber(t[0]) && isNumber(t[1]),
-    )
-  )
-    errors.push(
-      'El bloque «condicion_comercial.tramos_factor» debe ser un arreglo de pares [limite, factor].',
-    );
-
-  if (!isPlainObject(cc.precio_por_plan)) {
-    errors.push('El bloque «condicion_comercial.precio_por_plan» es inválido.');
   } else {
     for (const plan of ["1", "2", "3"] as const) {
-      if (!isInt(cc.precio_por_plan[plan]))
+      if (!isNumber((cc.base_por_plan as Record<string, unknown>)[plan]))
         errors.push(
-          `El bloque «condicion_comercial.precio_por_plan.${plan}» debe ser un entero (precio limpio, sin decimales).`,
+          `El bloque «condicion_comercial.base_por_plan.${plan}» debe ser un número (llegó ${muestra((cc.base_por_plan as Record<string, unknown>)[plan])}).`,
         );
     }
   }
 
-  if (!inRange(cc.limite_descuento_sin_aprobacion, 0, 1))
+  if (!Array.isArray(cc.tramos_factor)) {
     errors.push(
-      'El bloque «condicion_comercial.limite_descuento_sin_aprobacion» debe estar entre 0 y 1.',
+      `El bloque «condicion_comercial.tramos_factor» debe ser un arreglo de pares [limite, factor] y llegó ${tipoEs(cc.tramos_factor)}.`,
     );
+  } else {
+    cc.tramos_factor.forEach((t, i) => {
+      if (!Array.isArray(t) || t.length !== 2 || !isNumber(t[0]) || !isNumber(t[1]))
+        errors.push(
+          `El elemento «condicion_comercial.tramos_factor[${i}]» debe ser un par [limite, factor] numérico (llegó ${muestra(t)}).`,
+        );
+    });
+  }
+
+  if (!isPlainObject(cc.precio_por_plan)) {
+    errors.push(
+      `El bloque «condicion_comercial.precio_por_plan» debe ser un objeto y llegó ${tipoEs(cc.precio_por_plan)}.`,
+    );
+  } else {
+    for (const plan of ["1", "2", "3"] as const) {
+      checkEntero(
+        (cc.precio_por_plan as Record<string, unknown>)[plan],
+        `condicion_comercial.precio_por_plan.${plan}`,
+        errors,
+      );
+    }
+  }
+
+  checkRango(
+    cc.limite_descuento_sin_aprobacion,
+    "condicion_comercial.limite_descuento_sin_aprobacion",
+    0,
+    1,
+    errors,
+  );
 }
 
 function validatePlanRecomendado(pr: unknown, errors: string[]): void {
   if (!isPlainObject(pr)) {
-    errors.push('Falta o es inválido el bloque «plan_recomendado».');
+    errors.push(`El bloque «plan_recomendado» debe ser un objeto y llegó ${tipoEs(pr)}.`);
     return;
   }
   if (pr.plan !== 1 && pr.plan !== 2 && pr.plan !== 3)
-    errors.push('El bloque «plan_recomendado.plan» debe ser 1, 2 o 3.');
-  if (!isNonEmptyString(pr.por_que))
-    errors.push('El bloque «plan_recomendado.por_que» debe ser un texto.');
+    errors.push(`El bloque «plan_recomendado.plan» debe ser 1, 2 o 3 (llegó ${muestra(pr.plan)}).`);
+  checkTexto(pr.por_que, "plan_recomendado.por_que", errors);
 }

@@ -1,32 +1,35 @@
-import Link from "next/link";
+import { storage } from "@/lib/storage";
+import { toPresentacionVM } from "@/lib/presentacionVM";
+import PresentacionView from "./PresentacionView";
+import "./presentacion.css";
 
-// Placeholder. La vista de presentación se construye en el prompt 2.
-// Es una ruta del consultor (/consultor/...): NUNCA es el documento del
-// cliente, que vivirá bajo /p/ como una respuesta distinta.
-export default async function PresentacionStub({
+export const dynamic = "force-dynamic";
+
+export default async function PresentacionPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const stored = await storage.getProposal(id);
 
-  return (
-    <main className="container stack">
-      <h1>Vista de presentación</h1>
-      <div className="card card-muted">
-        <p style={{ marginTop: 0 }}>
-          Esta pantalla aún no está construida. Se implementará en una etapa
-          posterior.
-        </p>
-        <p className="muted" style={{ marginBottom: 0 }}>
-          Propuesta: <code>{id}</code>
-        </p>
-      </div>
-      <div>
-        <Link href="/consultor" className="btn btn-secondary">
-          Volver al listado
-        </Link>
-      </div>
-    </main>
-  );
+  if (!stored) {
+    return (
+      <main className="container stack">
+        <h1>Propuesta no encontrada</h1>
+        <div className="card card-muted">
+          <p style={{ margin: 0 }}>
+            No existe una propuesta con el identificador <code>{id}</code>.
+          </p>
+        </div>
+        <div>
+          <a href="/consultor" className="btn btn-secondary">
+            Volver al listado
+          </a>
+        </div>
+      </main>
+    );
+  }
+
+  return <PresentacionView id={id} vm={toPresentacionVM(stored.data)} />;
 }

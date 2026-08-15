@@ -13,7 +13,41 @@
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
-import type { Proposal, StoredProposal } from "./types";
+import type {
+  Proposal,
+  StoredProposal,
+  SentVersion,
+  AppliedCondition,
+  ClientDocument,
+  Acceptance,
+  TelemetryEvent,
+} from "./types";
+
+/** What the send flow supplies; storage assigns version, sentAt and token. */
+export interface SentVersionInput {
+  plan: 1 | 2 | 3;
+  autor: string;
+  aprobador: string | null;
+  motivo: string | null;
+  condicion: AppliedCondition;
+  clientDocument: ClientDocument;
+  /** Hash of the draft data at send time (to detect later unsent edits). */
+  sourceHash: string;
+}
+
+/** Deterministic hash of a proposal's draft data, for drift detection. */
+export function hashData(data: unknown): string {
+  return crypto.createHash("sha1").update(JSON.stringify(data)).digest("hex");
+}
+
+/** Cap on stored telemetry events per version (backstop against floods). */
+const MAX_EVENTS = 1000;
+
+/** A token resolved to its owning proposal and frozen version. */
+export interface TokenResolution {
+  proposal: StoredProposal;
+  sentVersion: SentVersion;
+}
 
 export interface ProposalStorage {
   /** Persist a fresh proposal as version "v1". Returns the stored record. */
@@ -24,7 +58,24 @@ export interface ProposalStorage {
   listProposals(): Promise<StoredProposal[]>;
   /** Save a new version of an existing proposal; bumps the version tag. */
   saveVersion(id: string, data: Proposal): Promise<StoredProposal>;
+  /** Freeze and store an immutable sent version; returns it with its token. */
+  saveSentVersion(id: string, input: SentVersionInput): Promise<SentVersion>;
+  /** Resolve a share token to its frozen version, or null. */
+  getByToken(token: string): Promise<TokenResolution | null>;
+  /**
+   * Record the client's acceptance of a version. Rejects a second accept on
+   * the same version server-side (never just hidden in the UI).
+   */
+  aceptarVersion(token: string, acceptance: Acceptance): Promise<AcceptResult>;
+  /** Append a telemetry event to a version. Rejects unknown tokens. */
+  registrarEvento(token: string, event: TelemetryEvent): Promise<EventResult>;
 }
+
+export type AcceptResult =
+  | { ok: true; sentVersion: SentVersion }
+  | { ok: false; reason: "not_found" | "already_accepted" };
+
+export type EventResult = { ok: true } | { ok: false; reason: "not_found" };
 
 // --- helpers ------------------------------------------------------------
 
@@ -52,6 +103,11 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+/** A crypto-strength, url-safe token (24 chars from 18 random bytes). */
+function generateToken(): string {
+  return crypto.randomBytes(18).toString("base64url");
+}
+
 function newRecord(id: string, data: Proposal, version: string): StoredProposal {
   return {
     id,
@@ -60,6 +116,29 @@ function newRecord(id: string, data: Proposal, version: string): StoredProposal 
     createdAt: nowIso(),
     estado: "borrador",
     data,
+    sentVersions: [],
+  };
+}
+
+/** Build the next immutable sent version from the input and current history. */
+function buildSentVersion(
+  existing: StoredProposal,
+  input: SentVersionInput,
+): SentVersion {
+  return {
+    version: `v${existing.sentVersions.length + 1}`,
+    token: generateToken(),
+    sentAt: nowIso(),
+    plan: input.plan,
+    autor: input.autor,
+    aprobador: input.aprobador,
+    motivo: input.motivo,
+    condicion: input.condicion,
+    clientDocument: input.clientDocument,
+    estado: "enviada",
+    acceptance: null,
+    events: [],
+    sourceHash: input.sourceHash,
   };
 }
 
@@ -67,6 +146,10 @@ function newRecord(id: string, data: Proposal, version: string): StoredProposal 
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DATA_FILE = path.join(DATA_DIR, "proposals.json");
+
+// Under Vitest, stay purely in-memory: each test file gets its own isolated
+// store and there is no shared file for parallel workers to corrupt.
+const SKIP_FILE = Boolean(process.env.VITEST);
 
 /**
  * Local-dev backend. The Map is the source of truth within a process; the
@@ -81,16 +164,28 @@ class MemoryFileStorage implements ProposalStorage {
   private async load(): Promise<void> {
     if (this.loaded) return;
     this.loaded = true;
+    if (SKIP_FILE) return;
     try {
       const raw = await fs.readFile(DATA_FILE, "utf8");
       const parsed = JSON.parse(raw) as StoredProposal[];
-      for (const rec of parsed) this.map.set(rec.id, rec);
+      for (const rec of parsed) {
+        // Tolerate records written before sent versions / acceptance existed.
+        if (!Array.isArray(rec.sentVersions)) rec.sentVersions = [];
+        for (const v of rec.sentVersions) {
+          if (!v.estado) v.estado = "enviada";
+          if (v.acceptance === undefined) v.acceptance = null;
+          if (!Array.isArray(v.events)) v.events = [];
+          if (typeof v.sourceHash !== "string") v.sourceHash = "";
+        }
+        this.map.set(rec.id, rec);
+      }
     } catch {
       // No file yet, or unreadable: start empty.
     }
   }
 
   private async persist(): Promise<void> {
+    if (SKIP_FILE) return;
     try {
       await fs.mkdir(DATA_DIR, { recursive: true });
       const all = Array.from(this.map.values());
@@ -136,12 +231,75 @@ class MemoryFileStorage implements ProposalStorage {
     await this.persist();
     return rec;
   }
+
+  async saveSentVersion(
+    id: string,
+    input: SentVersionInput,
+  ): Promise<SentVersion> {
+    await this.load();
+    const existing = this.map.get(id);
+    if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
+    const sent = buildSentVersion(existing, input);
+    // Immutable append; sent snapshots are never mutated afterwards.
+    existing.sentVersions = [...existing.sentVersions, sent];
+    existing.estado = "enviada";
+    this.map.set(id, existing);
+    await this.persist();
+    return sent;
+  }
+
+  async getByToken(token: string): Promise<TokenResolution | null> {
+    await this.load();
+    for (const proposal of this.map.values()) {
+      const sentVersion = proposal.sentVersions.find((v) => v.token === token);
+      if (sentVersion) return { proposal, sentVersion };
+    }
+    return null;
+  }
+
+  async aceptarVersion(
+    token: string,
+    acceptance: Acceptance,
+  ): Promise<AcceptResult> {
+    await this.load();
+    for (const proposal of this.map.values()) {
+      const sentVersion = proposal.sentVersions.find((v) => v.token === token);
+      if (!sentVersion) continue;
+      if (sentVersion.estado === "aceptada") {
+        return { ok: false, reason: "already_accepted" };
+      }
+      sentVersion.estado = "aceptada";
+      sentVersion.acceptance = acceptance;
+      proposal.estado = "aceptada";
+      await this.persist();
+      return { ok: true, sentVersion };
+    }
+    return { ok: false, reason: "not_found" };
+  }
+
+  async registrarEvento(
+    token: string,
+    event: TelemetryEvent,
+  ): Promise<EventResult> {
+    await this.load();
+    for (const proposal of this.map.values()) {
+      const sentVersion = proposal.sentVersions.find((v) => v.token === token);
+      if (!sentVersion) continue;
+      sentVersion.events.push(event);
+      if (sentVersion.events.length > MAX_EVENTS)
+        sentVersion.events = sentVersion.events.slice(-MAX_EVENTS);
+      await this.persist();
+      return { ok: true };
+    }
+    return { ok: false, reason: "not_found" };
+  }
 }
 
 // --- Vercel KV backend --------------------------------------------------
 
 const KV_INDEX = "proposals:index";
 const kvKey = (id: string) => `proposal:${id}`;
+const kvTokenKey = (token: string) => `ptoken:${token}`;
 
 // Non-literal specifier so the type checker and bundler never try to resolve
 // this optional dependency at build time. It is imported at runtime only when
@@ -208,6 +366,71 @@ class KvStorage implements ProposalStorage {
     await kv.set(kvKey(id), rec);
     return rec;
   }
+
+  async saveSentVersion(
+    id: string,
+    input: SentVersionInput,
+  ): Promise<SentVersion> {
+    const kv = await this.clientPromise;
+    const existing = await this.getProposal(id);
+    if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
+    if (!Array.isArray(existing.sentVersions)) existing.sentVersions = [];
+    const sent = buildSentVersion(existing, input);
+    existing.sentVersions = [...existing.sentVersions, sent];
+    existing.estado = "enviada";
+    await kv.set(kvKey(id), existing);
+    // Token index → { id, version } so tokens resolve in O(1).
+    await kv.set(kvTokenKey(sent.token), { id, version: sent.version });
+    return sent;
+  }
+
+  async getByToken(token: string): Promise<TokenResolution | null> {
+    const kv = await this.clientPromise;
+    const ref = (await kv.get(kvTokenKey(token))) as
+      | { id: string; version: string }
+      | null;
+    if (!ref) return null;
+    const proposal = await this.getProposal(ref.id);
+    if (!proposal) return null;
+    const sentVersion = proposal.sentVersions.find((v) => v.token === token);
+    return sentVersion ? { proposal, sentVersion } : null;
+  }
+
+  async aceptarVersion(
+    token: string,
+    acceptance: Acceptance,
+  ): Promise<AcceptResult> {
+    const kv = await this.clientPromise;
+    const resolved = await this.getByToken(token);
+    if (!resolved) return { ok: false, reason: "not_found" };
+    const { proposal } = resolved;
+    const sentVersion = proposal.sentVersions.find((v) => v.token === token)!;
+    if (sentVersion.estado === "aceptada") {
+      return { ok: false, reason: "already_accepted" };
+    }
+    sentVersion.estado = "aceptada";
+    sentVersion.acceptance = acceptance;
+    proposal.estado = "aceptada";
+    await kv.set(kvKey(proposal.id), proposal);
+    return { ok: true, sentVersion };
+  }
+
+  async registrarEvento(
+    token: string,
+    event: TelemetryEvent,
+  ): Promise<EventResult> {
+    const kv = await this.clientPromise;
+    const resolved = await this.getByToken(token);
+    if (!resolved) return { ok: false, reason: "not_found" };
+    const { proposal } = resolved;
+    const sentVersion = proposal.sentVersions.find((v) => v.token === token)!;
+    if (!Array.isArray(sentVersion.events)) sentVersion.events = [];
+    sentVersion.events.push(event);
+    if (sentVersion.events.length > MAX_EVENTS)
+      sentVersion.events = sentVersion.events.slice(-MAX_EVENTS);
+    await kv.set(kvKey(proposal.id), proposal);
+    return { ok: true };
+  }
 }
 
 // --- backend selection --------------------------------------------------
@@ -231,4 +454,9 @@ export const storage: ProposalStorage = {
   getProposal: (id) => getStorage().getProposal(id),
   listProposals: () => getStorage().listProposals(),
   saveVersion: (id, data) => getStorage().saveVersion(id, data),
+  saveSentVersion: (id, input) => getStorage().saveSentVersion(id, input),
+  getByToken: (token) => getStorage().getByToken(token),
+  aceptarVersion: (token, acceptance) =>
+    getStorage().aceptarVersion(token, acceptance),
+  registrarEvento: (token, event) => getStorage().registrarEvento(token, event),
 };
