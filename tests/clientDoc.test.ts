@@ -104,7 +104,7 @@ describe("documento del cliente — bloque de precio", () => {
     expect(text).not.toContain("$3.468");
   });
 
-  it("sin condición: solo precio de lista, cero menciones de descuento", () => {
+  it("sin condición: solo precio de lista, sin bloque de condición ni precio con descuento", () => {
     const text = visibleText(
       renderDoc({
         descuentoPct: null,
@@ -112,12 +112,15 @@ describe("documento del cliente — bloque de precio", () => {
         nowIso: "2026-08-20T00:00:00.000Z",
       }),
     );
+    // NOTE: the real proposal has a component literally named "Los descuentos
+    // dentro de política…", so we cannot ban the word "descuento" outright —
+    // we assert the discount CONDITION is absent, not the word.
     expect(text).toContain("$4.080 USD");
-    expect(text.toLowerCase()).not.toContain("descuento");
-    expect(text).not.toContain("$3.468");
+    expect(text).not.toContain("Condición registrada por");
+    expect(text).not.toContain("$3.468"); // no discounted price
   });
 
-  it("sin condición: el VM (payload de hidratación) no lleva la cadena «descuento»", () => {
+  it("sin condición: el objeto condición del VM no lleva descuento", () => {
     const data = loadFixture();
     const condicion = construirCondicion(data, 2, {
       descuentoPct: null,
@@ -127,7 +130,11 @@ describe("documento del cliente — bloque de precio", () => {
     });
     const doc = buildClientDocument(data, condicion, 2);
     const vm = toClientDocVM(doc, "2026-08-14T15:00:00.000Z");
-    expect(JSON.stringify(vm).toLowerCase()).not.toContain("descuento");
+    // The condition the client is offered carries no discount and no key
+    // whose name contains "descuento" (the VM field is `pct`, not descuentoPct).
+    expect(JSON.stringify(vm.condicion).toLowerCase()).not.toContain("descuento");
+    expect(vm.condicion.pct).toBeNull();
+    expect(vm.condicion.lineaCondicion).toBeNull();
   });
 });
 
@@ -142,8 +149,8 @@ describe("documento del cliente — contenido y aceptación", () => {
     );
     expect(text).toContain("Este documento se explica solo");
     expect(text).toContain("Cómo leer el plano que sigue");
-    // fuga verbatim quote
-    expect(text).toContain("para cuando llamamos, la persona ya ni se acuerda");
+    // fuga verbatim quote (real F-08 evidence)
+    expect(text).toContain("no tenemos el personal para atender");
     // visibility badge
     expect(text).toContain("tu cliente lo ve");
   });

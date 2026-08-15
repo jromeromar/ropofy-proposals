@@ -38,8 +38,8 @@ describe("buildClientDocument — claves prohibidas ausentes", () => {
   });
 
   it("no expone ids internos de componentes", () => {
-    expect(serialized).not.toContain("comp-ia-precalifica");
-    expect(serialized).not.toContain("comp-tablero-asesor");
+    expect(serialized).not.toContain("gestion-chatbot-precalificacion");
+    expect(serialized).not.toContain("tableros-operativo-asesor");
     expect(serialized).not.toContain("chatbot_ia");
   });
 

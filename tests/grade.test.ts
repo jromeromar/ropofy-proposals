@@ -33,18 +33,18 @@ describe("gradeFromPuntos", () => {
 describe("puntos y grado por plan (fixture Activos)", () => {
   const madurez = loadFixture().madurez;
 
-  it("plan 1 (Fundamental) → 61 / C", () => {
-    expect(puntosForPlan(madurez, 1)).toBe(61);
-    expect(gradeForPlan(madurez, 1).letra).toBe("C");
+  it("plan 1 (Fundamental) → 50 / D", () => {
+    expect(puntosForPlan(madurez, 1)).toBe(50);
+    expect(gradeForPlan(madurez, 1).letra).toBe("D");
   });
 
-  it("plan 2 (Avanzado) → 79 / B", () => {
-    expect(puntosForPlan(madurez, 2)).toBe(79);
+  it("plan 2 (Avanzado) → 75 / B", () => {
+    expect(puntosForPlan(madurez, 2)).toBe(75);
     expect(gradeForPlan(madurez, 2).letra).toBe("B");
   });
 
-  it("plan 3 (Inteligente) → 93 / A", () => {
-    expect(puntosForPlan(madurez, 3)).toBe(93);
+  it("plan 3 (Inteligente) → 100 / A", () => {
+    expect(puntosForPlan(madurez, 3)).toBe(100);
     expect(gradeForPlan(madurez, 3).letra).toBe("A");
   });
 });

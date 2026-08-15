@@ -18,7 +18,9 @@ function clone<T>(v: T): T {
 }
 
 describe("validateProposal", () => {
-  it("acepta el fixture contract-complete", () => {
+  // ALARMA DE CONTRATO: el fixture ES el propuesta.json real del pipeline.
+  // Si el contrato y la app se separan, esta prueba grita primero.
+  it("acepta el propuesta.json real (fixture) con CERO errores", () => {
     const result = validateProposal(loadFixture());
     expect(result.errors).toEqual([]);
     expect(result.ok).toBe(true);

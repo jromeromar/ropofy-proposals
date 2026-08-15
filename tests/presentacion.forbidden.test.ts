@@ -43,7 +43,7 @@ describe("presentación — contenido prohibido", () => {
     const vm = toPresentacionVM(loadFixture());
     const serialized = JSON.stringify(vm);
     expect(forbiddenContentCheck(serialized).ok).toBe(true);
-    expect(serialized).not.toContain("comp-ia-precalifica");
+    expect(serialized).not.toContain("gestion-chatbot-precalificacion");
     expect(serialized).not.toContain("multiplicador");
     expect(serialized).not.toContain("chatbot_ia");
   });
@@ -52,12 +52,12 @@ describe("presentación — contenido prohibido", () => {
 describe("presentación — contenido esperado", () => {
   it("renderiza la fuga dominante, badges de integración y no_aplican", () => {
     const text = visibleText(render(2));
-    expect(text).toContain("El volumen supera la capacidad de respuesta");
+    expect(text).toContain("El volumen desbordó al equipo"); // fuga dominante
     expect(text).toContain("Incluido");
     expect(text).toContain("Consumo variable");
     expect(text).toContain("Requiere su licencia");
     expect(text).toContain("Se cotiza aparte");
-    expect(text).toContain("Facturación electrónica"); // no_aplican
+    expect(text).toContain("Pago en línea del anticipo"); // no_aplican
     expect(text).toContain("Su asistente de IA — uno solo, con habilidades");
   });
 

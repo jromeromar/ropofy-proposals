@@ -59,10 +59,14 @@ export function isLocked(compPlan: PlanNombre, selectedPlan: number): boolean {
   return PLAN_RANK[compPlan] > selectedPlan;
 }
 
-/** The AI components collapse into one node. Detect them by `tipo`. */
+/**
+ * The AI components collapse into one node. Detect them by `tipo`: an "ia"
+ * token (e.g. "chatbot_ia"), NOT the substring — otherwise "telefonia" would
+ * be misread as AI.
+ */
 export function isAIComponent(comp: Componente): boolean {
   const tipo = String((comp as { tipo?: string }).tipo ?? "").toLowerCase();
-  return tipo.includes("chatbot_ia") || tipo.includes("ia");
+  return tipo.includes("chatbot_ia") || /(?:^|_)ia(?:$|_)/.test(tipo);
 }
 
 export interface CompEntry {

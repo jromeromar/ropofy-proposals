@@ -70,7 +70,7 @@ describe("flujo de envío — versionado inmutable y tokens", () => {
 
     const resolved = await storage.getByToken(v1.token);
     expect(resolved?.sentVersion.clientDocument.cliente).toBe(
-      "Empresa de Ejemplo S.A.",
+      "Activos por Colombia S.A.S.",
     );
     expect(
       resolved?.sentVersion.condicion.precioLista,
