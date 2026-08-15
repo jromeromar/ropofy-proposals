@@ -1,5 +1,8 @@
+import { headers } from "next/headers";
 import { storage } from "@/lib/storage";
 import { toClientDocVM } from "@/lib/clientDocVM";
+import { emitirEvento, eventoCondicionExpirada } from "@/lib/events";
+import { enlaceDe } from "@/lib/enlace";
 import ClientDocView from "./ClientDocView";
 import "./clientdoc.css";
 
@@ -35,6 +38,25 @@ export default async function ClientDocumentPage({
   const sv = resolved.sentVersion;
   const vm = toClientDocVM(sv.clientDocument, sv.sentAt);
   const nowIso = new Date().toISOString();
+
+  // Lazily emit condicion_expirada the first time an expired document is served.
+  const c = sv.condicion;
+  const expirada =
+    c.descuentoPct != null &&
+    c.vigencia != null &&
+    new Date(c.vigencia).getTime() <= Date.now();
+  if (expirada && (await storage.debeEmitirExpiracion(token))) {
+    const h = await headers();
+    emitirEvento(
+      eventoCondicionExpirada({
+        cliente: resolved.proposal.cliente,
+        propuestaId: resolved.proposal.id,
+        version: sv.version,
+        enlace: enlaceDe(h, token),
+        at: nowIso,
+      }),
+    );
+  }
 
   return (
     <main className="cd-doc">

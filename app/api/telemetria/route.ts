@@ -1,17 +1,29 @@
 import { NextResponse } from "next/server";
 import { storage } from "@/lib/storage";
-import type { TelemetryEvent } from "@/lib/types";
+import { enlaceDe } from "@/lib/enlace";
+import {
+  emitirEvento,
+  eventoDocumentoAbierto,
+  eventoPlanExplorado,
+  eventoObservacionEscrita,
+  type EventoBase,
+} from "@/lib/events";
 
-// Telemetry writes hit storage on every event; never cache.
+// Emits events on every hit; never cache.
 export const dynamic = "force-dynamic";
 
-/** Max seconds we will store for a single page-time event (30 min). */
-const MAX_SECONDS = 30 * 60;
+/** documento_abierto throttle: at most one per token per 10 minutes. */
+const APERTURA_WINDOW_MS = 10 * 60 * 1000;
+
+function plan(v: unknown): 1 | 2 | 3 | undefined {
+  const n = Number(v);
+  return n === 1 || n === 2 || n === 3 ? (n as 1 | 2 | 3) : undefined;
+}
 
 /**
- * POST /api/telemetria — record one client-document event.
- * Body: { token, tipo, planVisto?, seconds? }. Rejects unknown tokens.
- * Accepts both fetch (JSON) and navigator.sendBeacon (text/JSON) bodies.
+ * POST /api/telemetria — receive a client-document signal and EMIT the matching
+ * CRM event (fire-and-forget). Body: { token, tipo, planVisto? }. Rejects
+ * unknown tokens (nothing is ever created from a telemetry hit).
  */
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
@@ -27,41 +39,41 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
-  const at = new Date().toISOString();
-  const ua = request.headers.get("user-agent");
-  let event: TelemetryEvent | null = null;
-
-  switch (tipo) {
-    case "abierto":
-      event = { tipo: "abierto", at, userAgent: ua };
-      break;
-    case "plan_cambiado": {
-      const p = Number(body.planVisto);
-      if (p === 1 || p === 2 || p === 3)
-        event = { tipo: "plan_cambiado", at, planVisto: p };
-      break;
-    }
-    case "observacion_escrita":
-      event = { tipo: "observacion_escrita", at };
-      break;
-    case "tiempo_en_pagina": {
-      const raw = Number(body.seconds);
-      if (Number.isFinite(raw) && raw >= 0) {
-        const seconds = Math.min(Math.round(raw), MAX_SECONDS);
-        event = { tipo: "tiempo_en_pagina", at, seconds };
-      }
-      break;
-    }
-    default:
-      event = null;
-  }
-
-  if (!event) return NextResponse.json({ ok: false }, { status: 400 });
-
-  const result = await storage.registrarEvento(token, event);
-  if (!result.ok) {
-    // Unknown token: reject (never create anything from an event).
+  const resolved = await storage.getByToken(token);
+  if (!resolved) {
+    // Unknown token: reject. Never emit or create anything.
     return NextResponse.json({ ok: false }, { status: 404 });
   }
-  return NextResponse.json({ ok: true });
+
+  const base: Omit<EventoBase, "evento"> = {
+    cliente: resolved.proposal.cliente,
+    propuestaId: resolved.proposal.id,
+    version: resolved.sentVersion.version,
+    enlace: enlaceDe(request.headers, token),
+    at: new Date().toISOString(),
+  };
+  const userAgent = request.headers.get("user-agent");
+
+  switch (tipo) {
+    case "abierto": {
+      // Throttled server-side so a re-opened document doesn't spam the CRM.
+      if (await storage.debeEmitirApertura(token, APERTURA_WINDOW_MS)) {
+        emitirEvento(
+          eventoDocumentoAbierto(base, { planVisto: plan(body.planVisto), userAgent }),
+        );
+      }
+      return NextResponse.json({ ok: true });
+    }
+    case "plan_cambiado": {
+      const p = plan(body.planVisto);
+      if (p) emitirEvento(eventoPlanExplorado(base, { planVisto: p }));
+      return NextResponse.json({ ok: true });
+    }
+    case "observacion_escrita": {
+      emitirEvento(eventoObservacionEscrita(base));
+      return NextResponse.json({ ok: true });
+    }
+    default:
+      return NextResponse.json({ ok: false }, { status: 400 });
+  }
 }

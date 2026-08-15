@@ -21,7 +21,6 @@ import type {
   AppliedCondition,
   ClientDocument,
   Acceptance,
-  TelemetryEvent,
 } from "./types";
 
 /** What the send flow supplies; storage assigns version, sentAt and token. */
@@ -32,17 +31,7 @@ export interface SentVersionInput {
   motivo: string | null;
   condicion: AppliedCondition;
   clientDocument: ClientDocument;
-  /** Hash of the draft data at send time (to detect later unsent edits). */
-  sourceHash: string;
 }
-
-/** Deterministic hash of a proposal's draft data, for drift detection. */
-export function hashData(data: unknown): string {
-  return crypto.createHash("sha1").update(JSON.stringify(data)).digest("hex");
-}
-
-/** Cap on stored telemetry events per version (backstop against floods). */
-const MAX_EVENTS = 1000;
 
 /** A token resolved to its owning proposal and frozen version. */
 export interface TokenResolution {
@@ -68,15 +57,21 @@ export interface ProposalStorage {
    * the same version server-side (never just hidden in the UI).
    */
   aceptarVersion(token: string, acceptance: Acceptance): Promise<AcceptResult>;
-  /** Append a telemetry event to a version. Rejects unknown tokens. */
-  registrarEvento(token: string, event: TelemetryEvent): Promise<EventResult>;
+  /**
+   * Throttle guard for `documento_abierto`: returns true (and records the
+   * timestamp) at most once per token per `windowMs`. Unknown token → false.
+   */
+  debeEmitirApertura(token: string, windowMs: number): Promise<boolean>;
+  /**
+   * Once-guard for `condicion_expirada`: returns true the first time only.
+   * Unknown token → false.
+   */
+  debeEmitirExpiracion(token: string): Promise<boolean>;
 }
 
 export type AcceptResult =
   | { ok: true; sentVersion: SentVersion }
   | { ok: false; reason: "not_found" | "already_accepted" };
-
-export type EventResult = { ok: true } | { ok: false; reason: "not_found" };
 
 // --- helpers ------------------------------------------------------------
 
@@ -138,8 +133,8 @@ function buildSentVersion(
     clientDocument: input.clientDocument,
     estado: "enviada",
     acceptance: null,
-    events: [],
-    sourceHash: input.sourceHash,
+    lastOpenEmitAt: null,
+    expiredEmitted: false,
   };
 }
 
@@ -175,8 +170,8 @@ class MemoryFileStorage implements ProposalStorage {
         for (const v of rec.sentVersions) {
           if (!v.estado) v.estado = "enviada";
           if (v.acceptance === undefined) v.acceptance = null;
-          if (!Array.isArray(v.events)) v.events = [];
-          if (typeof v.sourceHash !== "string") v.sourceHash = "";
+          if (v.lastOpenEmitAt === undefined) v.lastOpenEmitAt = null;
+          if (typeof v.expiredEmitted !== "boolean") v.expiredEmitted = false;
         }
         this.map.set(rec.id, rec);
       }
@@ -278,21 +273,32 @@ class MemoryFileStorage implements ProposalStorage {
     return { ok: false, reason: "not_found" };
   }
 
-  async registrarEvento(
-    token: string,
-    event: TelemetryEvent,
-  ): Promise<EventResult> {
+  private async findByToken(token: string): Promise<SentVersion | null> {
     await this.load();
     for (const proposal of this.map.values()) {
-      const sentVersion = proposal.sentVersions.find((v) => v.token === token);
-      if (!sentVersion) continue;
-      sentVersion.events.push(event);
-      if (sentVersion.events.length > MAX_EVENTS)
-        sentVersion.events = sentVersion.events.slice(-MAX_EVENTS);
-      await this.persist();
-      return { ok: true };
+      const v = proposal.sentVersions.find((sv) => sv.token === token);
+      if (v) return v;
     }
-    return { ok: false, reason: "not_found" };
+    return null;
+  }
+
+  async debeEmitirApertura(token: string, windowMs: number): Promise<boolean> {
+    const v = await this.findByToken(token);
+    if (!v) return false;
+    const now = Date.now();
+    const last = v.lastOpenEmitAt ? new Date(v.lastOpenEmitAt).getTime() : 0;
+    if (now - last < windowMs) return false;
+    v.lastOpenEmitAt = new Date(now).toISOString();
+    await this.persist();
+    return true;
+  }
+
+  async debeEmitirExpiracion(token: string): Promise<boolean> {
+    const v = await this.findByToken(token);
+    if (!v || v.expiredEmitted) return false;
+    v.expiredEmitted = true;
+    await this.persist();
+    return true;
   }
 }
 
@@ -406,20 +412,28 @@ class KvStorage implements ProposalStorage {
     return { ok: true, sentVersion };
   }
 
-  async registrarEvento(
-    token: string,
-    event: TelemetryEvent,
-  ): Promise<EventResult> {
+  async debeEmitirApertura(token: string, windowMs: number): Promise<boolean> {
     const resolved = await this.getByToken(token);
-    if (!resolved) return { ok: false, reason: "not_found" };
+    if (!resolved) return false;
     const { proposal } = resolved;
-    const sentVersion = proposal.sentVersions.find((v) => v.token === token)!;
-    if (!Array.isArray(sentVersion.events)) sentVersion.events = [];
-    sentVersion.events.push(event);
-    if (sentVersion.events.length > MAX_EVENTS)
-      sentVersion.events = sentVersion.events.slice(-MAX_EVENTS);
+    const v = proposal.sentVersions.find((sv) => sv.token === token)!;
+    const now = Date.now();
+    const last = v.lastOpenEmitAt ? new Date(v.lastOpenEmitAt).getTime() : 0;
+    if (now - last < windowMs) return false;
+    v.lastOpenEmitAt = new Date(now).toISOString();
     await this.redis.set(kvKey(proposal.id), proposal);
-    return { ok: true };
+    return true;
+  }
+
+  async debeEmitirExpiracion(token: string): Promise<boolean> {
+    const resolved = await this.getByToken(token);
+    if (!resolved) return false;
+    const { proposal } = resolved;
+    const v = proposal.sentVersions.find((sv) => sv.token === token)!;
+    if (v.expiredEmitted) return false;
+    v.expiredEmitted = true;
+    await this.redis.set(kvKey(proposal.id), proposal);
+    return true;
   }
 }
 
@@ -448,5 +462,7 @@ export const storage: ProposalStorage = {
   getByToken: (token) => getStorage().getByToken(token),
   aceptarVersion: (token, acceptance) =>
     getStorage().aceptarVersion(token, acceptance),
-  registrarEvento: (token, event) => getStorage().registrarEvento(token, event),
+  debeEmitirApertura: (token, windowMs) =>
+    getStorage().debeEmitirApertura(token, windowMs),
+  debeEmitirExpiracion: (token) => getStorage().debeEmitirExpiracion(token),
 };
