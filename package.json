@@ -13,6 +13,7 @@
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
+    "@upstash/redis": "1.34.3",
     "next": "15.5.23",
     "react": "19.0.0",
     "react-dom": "19.0.0"
