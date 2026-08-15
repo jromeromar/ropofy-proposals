@@ -33,7 +33,8 @@ export interface FugaVM {
   texto: string | null;
   evidencia: string | null;
   estado: EstadoFuga;
-  dependeDeTercero: boolean;
+  /** The third party's name (mitigable fugas), interpolated in the document. */
+  dependeDe: string | null;
   cifra: string;
 }
 
@@ -88,12 +89,13 @@ function extractStats(asIs: AsIs): Array<{ value: string; label: string }> {
 
 function toFugaVM(f: Record<string, unknown>): FugaVM {
   const cuant = f.cuantificacion as { valor?: unknown } | undefined;
+  const dep = f.depende_de_tercero;
   return {
     titulo: String(f.titulo ?? ""),
     texto: (f.texto as string | null) ?? null,
     evidencia: (f.evidencia_textual as string | null) ?? null,
     estado: f.estado as EstadoFuga,
-    dependeDeTercero: Boolean(f.depende_de_tercero),
+    dependeDe: typeof dep === "string" && dep.trim() !== "" ? dep : null,
     cifra: cuant?.valor != null ? String(cuant.valor) : "",
   };
 }

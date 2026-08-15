@@ -151,6 +151,8 @@ describe("documento del cliente — contenido y aceptación", () => {
     expect(text).toContain("Cómo leer el plano que sigue");
     // fuga verbatim quote (real F-08 evidence)
     expect(text).toContain("no tenemos el personal para atender");
+    // mitigable fuga interpolates the third party's name (F-15)
+    expect(text).toContain("Depende de SAE y territoriales externas");
     // visibility badge
     expect(text).toContain("tu cliente lo ve");
   });

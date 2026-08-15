@@ -259,19 +259,18 @@ function validateFugas(fugas: unknown, errors: string[]): void {
       );
     }
 
-    // depende_de_tercero: on a mitigable fuga this names the third party.
-    // Accept a non-empty string (the name) or the boolean true; null/absent/
-    // empty is the real "missing". Any other type is a type error.
+    // depende_de_tercero: on a mitigable fuga this MUST be a non-empty string
+    // — the third party's name, which the client document interpolates. A
+    // boolean (as the old fixture invented) is a type error.
     if (estado === "mitigable") {
       const dep = f.depende_de_tercero;
-      const nombra = typeof dep === "string" && dep.trim() !== "";
-      if (isAbsent(dep) || dep === false || (typeof dep === "string" && dep.trim() === "")) {
+      if (typeof dep !== "string") {
         errors.push(
-          `El elemento «${etiqueta}» tiene estado mitigable pero «depende_de_tercero» está ausente o vacío (llegó ${muestra(dep)}).`,
+          `El elemento «${etiqueta}.depende_de_tercero» debe ser el texto del tercero cuando el estado es mitigable, y llegó ${tipoEs(dep)} (${muestra(dep)}).`,
         );
-      } else if (!nombra && dep !== true) {
+      } else if (dep.trim() === "") {
         errors.push(
-          `El elemento «${etiqueta}.depende_de_tercero» debe ser el texto del tercero y llegó ${tipoEs(dep)} (${muestra(dep)}).`,
+          `El elemento «${etiqueta}.depende_de_tercero» no puede estar vacío cuando el estado es mitigable.`,
         );
       }
     }

@@ -259,8 +259,8 @@ function FugaCard({ f, dominante }: { f: FugaVM; dominante?: boolean }) {
       )}
       {f.estado === "mitigable" && (
         <p className="cd-fuga-estado">
-          Depende de un tercero: se declara y se agiliza — no se promete cerrar
-          lo que es de un tercero.
+          Depende de {f.dependeDe ?? "un tercero"}: se declara y se agiliza — no
+          se promete cerrar lo que es de un tercero.
         </p>
       )}
       {f.estado === "fuera_de_alcance" && (

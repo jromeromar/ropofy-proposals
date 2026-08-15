@@ -34,6 +34,18 @@ describe("validateProposal", () => {
     expect(result.errors.some((e) => e.includes("nota"))).toBe(true);
   });
 
+  it("rechaza depende_de_tercero booleano en una fuga mitigable (debe ser texto)", () => {
+    const p = clone(loadFixture());
+    const mitigable = p.fugas.find((f) => f.estado === "mitigable");
+    expect(mitigable).toBeDefined();
+    (mitigable as Record<string, unknown>).depende_de_tercero = true;
+    const result = validateProposal(p);
+    expect(result.ok).toBe(false);
+    expect(
+      result.errors.some((e) => e.includes("depende_de_tercero")),
+    ).toBe(true);
+  });
+
   it("rechaza cuando dos fugas son dominantes", () => {
     const p = clone(loadFixture());
     // The first fuga is dominante in the fixture; make a second one too.
