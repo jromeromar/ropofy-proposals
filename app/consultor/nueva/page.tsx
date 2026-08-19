@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { validateProposal } from "@/lib/validateProposal";
 import { formatPrice } from "@/lib/rules";
@@ -39,28 +39,30 @@ function contarPorPlan(proposal: Proposal): Record<PlanNombre, number> {
   return counts;
 }
 
+/** Normalise a client name for matching (accents, case, punctuation). */
+function norm(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 export default function NuevaPropuesta() {
+  // Step 1 (carga) → step 2 (asociar) → summary.
+  const [paso, setPaso] = useState<"carga" | "asociar">("carga");
   const [text, setText] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
-  const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
-  const [existentes, setExistentes] = useState<ClienteOpcion[]>([]);
-  const [asociarA, setAsociarA] = useState("");
 
-  useEffect(() => {
-    let vivo = true;
-    fetch("/api/proposals")
-      .then((r) => (r.ok ? r.json() : { proposals: [] }))
-      .then((p) => {
-        if (vivo && Array.isArray(p.proposals)) setExistentes(p.proposals);
-      })
-      .catch(() => {
-        /* the selector is optional; ignore load errors */
-      });
-    return () => {
-      vivo = false;
-    };
-  }, []);
+  const [parsed, setParsed] = useState<Proposal | null>(null);
+  const [existentes, setExistentes] = useState<ClienteOpcion[]>([]);
+  const [listaEstado, setListaEstado] = useState<"idle" | "ok" | "error">("idle");
+  const [asociarA, setAsociarA] = useState("");
+  const [sugeridoId, setSugeridoId] = useState<string | null>(null);
+
+  const [summary, setSummary] = useState<Summary | null>(null);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -68,31 +70,57 @@ export default function NuevaPropuesta() {
     const content = await file.text();
     setText(content);
     setErrors([]);
-    setSummary(null);
   }
 
-  async function handleLoad() {
+  // Step 1 → 2: parse + validate the JSON (no persistence yet), then load the
+  // existing clients and pre-select the one whose name matches, if any.
+  async function handleContinuar() {
     setErrors([]);
-    setSummary(null);
 
-    // 1) Parse.
-    let parsed: unknown;
+    let data: unknown;
     try {
-      parsed = JSON.parse(text);
+      data = JSON.parse(text);
     } catch {
       setErrors(["El texto pegado no es un JSON válido. Revisa la sintaxis."]);
       return;
     }
-
-    // 2) Validate structure BEFORE rendering anything.
-    const result = validateProposal(parsed);
+    const result = validateProposal(data);
     if (!result.ok) {
       setErrors(result.errors);
       return;
     }
 
-    // 3) Persist via the API (which re-validates server-side). When a client
-    //    is selected, store it as a NEW VERSION of that existing proposal.
+    const proposal = data as Proposal;
+    setParsed(proposal);
+
+    // Load existing clients on demand (no-store so the list is always fresh).
+    let lista: ClienteOpcion[] = [];
+    try {
+      const res = await fetch("/api/proposals", { cache: "no-store" });
+      if (res.ok) {
+        const payload = await res.json();
+        if (Array.isArray(payload.proposals)) lista = payload.proposals;
+        setListaEstado("ok");
+      } else {
+        setListaEstado("error");
+      }
+    } catch {
+      setListaEstado("error");
+    }
+    setExistentes(lista);
+
+    // Auto-suggest: same client name → offer it as a new version.
+    const match = lista.find((c) => norm(c.cliente) === norm(proposal.cliente));
+    setSugeridoId(match?.id ?? null);
+    setAsociarA(match?.id ?? "");
+
+    setPaso("asociar");
+  }
+
+  // Step 2: persist (as a new version when a client is selected).
+  async function handleGuardar() {
+    if (!parsed) return;
+    setErrors([]);
     setLoading(true);
     try {
       const url = asociarA
@@ -112,7 +140,7 @@ export default function NuevaPropuesta() {
       }
       setSummary({
         stored: payload.proposal as StoredProposal,
-        proposal: parsed as Proposal,
+        proposal: parsed,
         asVersion: Boolean(payload.asVersion),
       });
     } catch {
@@ -136,30 +164,9 @@ export default function NuevaPropuesta() {
         </Link>
       </div>
 
-      {!summary && (
+      {/* Step 1: load the JSON */}
+      {!summary && paso === "carga" && (
         <div className="stack">
-          <div>
-            <label htmlFor="asociar">Cliente</label>
-            <select
-              id="asociar"
-              value={asociarA}
-              onChange={(e) => setAsociarA(e.target.value)}
-            >
-              <option value="">Cliente nuevo (crear propuesta)</option>
-              {existentes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.cliente} · {c.version}
-                  {c.sentCount > 0 ? ` · ${c.sentCount} enviada(s)` : ""}
-                </option>
-              ))}
-            </select>
-            <p className="muted" style={{ marginTop: 6 }}>
-              {asociarA
-                ? "Se cargará como una versión nueva de este cliente; su historial de envíos se conserva."
-                : "Deja «Cliente nuevo» para crear una propuesta desde cero, o elige un cliente existente para asociarla como versión nueva."}
-            </p>
-          </div>
-
           <div>
             <label htmlFor="json">Contenido de la propuesta (JSON)</label>
             <textarea
@@ -184,28 +191,148 @@ export default function NuevaPropuesta() {
           <div>
             <button
               className="btn btn-primary"
-              onClick={handleLoad}
-              disabled={loading || text.trim().length === 0}
+              onClick={handleContinuar}
+              disabled={text.trim().length === 0}
             >
-              {loading ? "Cargando…" : "Cargar propuesta"}
+              Continuar
             </button>
           </div>
 
-          {errors.length > 0 && (
-            <div className="errors" role="alert">
-              <h3>La propuesta no se pudo cargar</h3>
-              <ul>
-                {errors.map((err, i) => (
-                  <li key={i}>{err}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {errors.length > 0 && <ErrorBox title="La propuesta no se pudo cargar" errors={errors} />}
         </div>
+      )}
+
+      {/* Step 2: choose the client (new, or a new version of an existing one) */}
+      {!summary && paso === "asociar" && parsed && (
+        <AsociarPaso
+          proposal={parsed}
+          existentes={existentes}
+          listaEstado={listaEstado}
+          asociarA={asociarA}
+          setAsociarA={setAsociarA}
+          sugeridoId={sugeridoId}
+          loading={loading}
+          onGuardar={handleGuardar}
+          onVolver={() => {
+            setPaso("carga");
+            setErrors([]);
+          }}
+          errors={errors}
+        />
       )}
 
       {summary && <SummaryCard summary={summary} />}
     </main>
+  );
+}
+
+function ErrorBox({ title, errors }: { title: string; errors: string[] }) {
+  return (
+    <div className="errors" role="alert">
+      <h3>{title}</h3>
+      <ul>
+        {errors.map((err, i) => (
+          <li key={i}>{err}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function AsociarPaso({
+  proposal,
+  existentes,
+  listaEstado,
+  asociarA,
+  setAsociarA,
+  sugeridoId,
+  loading,
+  onGuardar,
+  onVolver,
+  errors,
+}: {
+  proposal: Proposal;
+  existentes: ClienteOpcion[];
+  listaEstado: "idle" | "ok" | "error";
+  asociarA: string;
+  setAsociarA: (v: string) => void;
+  sugeridoId: string | null;
+  loading: boolean;
+  onGuardar: () => void;
+  onVolver: () => void;
+  errors: string[];
+}) {
+  const eligeSugerido = sugeridoId != null && asociarA === sugeridoId;
+  return (
+    <div className="stack">
+      <div className="card stack">
+        <div className="header-row">
+          <h2 style={{ margin: 0 }}>¿A qué cliente pertenece?</h2>
+          <span className="badge">{proposal.cliente}</span>
+        </div>
+
+        {sugeridoId && (
+          <div className="cot-confirm" role="status">
+            Hay un cliente que coincide con «{proposal.cliente}». Se sugiere
+            cargarla como <strong>versión nueva</strong> de ese cliente; puedes
+            cambiarlo abajo.
+          </div>
+        )}
+
+        <div>
+          <label htmlFor="asociar">Cliente</label>
+          <select
+            id="asociar"
+            value={asociarA}
+            onChange={(e) => setAsociarA(e.target.value)}
+          >
+            <option value="">
+              Cliente nuevo (crear propuesta){sugeridoId ? " — ignorar sugerencia" : ""}
+            </option>
+            {existentes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.cliente} · {c.version}
+                {c.sentCount > 0 ? ` · ${c.sentCount} enviada(s)` : ""}
+                {c.id === sugeridoId ? " · sugerido" : ""}
+              </option>
+            ))}
+          </select>
+          <p className="muted" style={{ marginTop: 6 }}>
+            {asociarA
+              ? eligeSugerido
+                ? "Se guardará como una versión nueva del cliente sugerido; su historial de envíos se conserva."
+                : "Se guardará como una versión nueva de este cliente; su historial de envíos se conserva."
+              : "Se creará una propuesta nueva desde cero."}
+          </p>
+          {listaEstado === "error" && (
+            <p className="muted" style={{ marginTop: 6 }}>
+              No se pudo cargar la lista de clientes; puedes continuar como
+              cliente nuevo.
+            </p>
+          )}
+          {listaEstado === "ok" && existentes.length === 0 && (
+            <p className="muted" style={{ marginTop: 6 }}>
+              Aún no hay clientes cargados: esta será la primera propuesta.
+            </p>
+          )}
+        </div>
+
+        {errors.length > 0 && <ErrorBox title="No se pudo guardar" errors={errors} />}
+
+        <div className="cot-send-row">
+          <button className="btn btn-primary" onClick={onGuardar} disabled={loading}>
+            {loading
+              ? "Guardando…"
+              : asociarA
+                ? "Guardar como versión nueva"
+                : "Guardar propuesta nueva"}
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={onVolver}>
+            Volver a editar el JSON
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -275,7 +402,6 @@ function SummaryCard({ summary }: { summary: Summary }) {
       </div>
 
       <div className="header-row">
-        {/* Enlace muerto por ahora: la vista de presentación llega en el prompt 2. */}
         <Link
           href={`/consultor/${stored.id}/presentacion`}
           className="btn btn-primary"
