@@ -35,6 +35,41 @@ const INTEGRACION_BADGE: Record<string, { label: string; cls: string }> = {
   desarrollo_a_cotizar: { label: "Se cotiza aparte", cls: "badge-cotizar" },
 };
 
+// Company-level social proof (shown to every client, like the legacy proposal).
+const TESTIMONIOS: Array<{ quote: string; autor: string; cargo: string }> = [
+  {
+    quote:
+      "Nuestra base de datos es el legado de 36 años de trabajo. Ropofy nos ayudó a organizarla de manera profesional y a darle un uso estratégico para conectar con nuestros clientes. Ahora, sin importar dónde esté nuestro equipo, pueden atender leads de inmediato y sin confusión.",
+    autor: "Rafael Garay",
+    cargo: "Cofounder, Palacio Bienes Raíces",
+  },
+  {
+    quote:
+      "Hicimos el evento de aniversario en otro lugar, un sábado que normalmente está lleno. Ese día facturamos el doble de lo que se factura en un día normal. Esta estrategia de verdad funciona.",
+    autor: "Viviana Marín",
+    cargo: "Estratega Comercial, Confuturo",
+  },
+];
+
+// Ropofy's standard onboarding — deal-agnostic, so shown to every client.
+const ARRANQUE_PASOS: Array<{ t: string; d: string }> = [
+  {
+    t: "Arranque y conexiones",
+    d: "Arrancamos juntos y conectamos tus canales y herramientas.",
+  },
+  {
+    t: "Implementación",
+    d: "Configuramos y dejamos el sistema funcionando, con reuniones de seguimiento y acompañamiento.",
+  },
+  {
+    t: "Órbita",
+    d: "Ya operando: una reunión mensual con tu Project Manager para evaluar el avance.",
+  },
+];
+
+const GARANTIA =
+  "Si a los dos meses no estás satisfecho, te devolvemos el 100% de tu inversión.";
+
 function visBadges(vis: Visibilidad): string[] {
   if (vis === "front") return ["tu cliente lo ve"];
   if (vis === "back") return ["tu equipo lo ve"];
@@ -136,7 +171,9 @@ export default function ClientDocView({
       <PlanoCompleto vm={vm} plan={plan} />
       <LosTresPlanes vm={vm} plan={plan} onSelect={setPlan} precioDe={precioDe} />
       <ADondeLlega vm={vm} plan={plan} />
+      <CasosDeExito />
       <Condiciones vm={vm} />
+      <ComoArrancamos />
       <Inversion
         vm={vm}
         plan={plan}
@@ -674,13 +711,75 @@ function ADondeLlega({ vm, plan }: { vm: ClientDocVM; plan: Plan }) {
   );
 }
 
+// --- 9. Casos de éxito (prueba social) ---------------------------------
+
+function CasosDeExito() {
+  return (
+    <section className="cd-section">
+      <SecHead n={9} small="No lo decimos solo nosotros">
+        Empresas que ya trabajan con nosotros
+      </SecHead>
+      <div className="cd-testimonios">
+        {TESTIMONIOS.map((t, i) => (
+          <figure className="cd-testimonio" key={i}>
+            <blockquote>«{t.quote}»</blockquote>
+            <figcaption>
+              <strong>{t.autor}</strong>
+              <span>{t.cargo}</span>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// --- 11. Cómo arrancamos y garantía ------------------------------------
+
+function ComoArrancamos() {
+  return (
+    <section className="cd-section">
+      <SecHead n={11} small="Qué pasa después de aceptar">
+        Cómo arrancamos y nuestro acompañamiento
+      </SecHead>
+      <div className="cd-arranque">
+        {ARRANQUE_PASOS.map((p, i) => (
+          <div className="cd-arranque-paso" key={i}>
+            <span className="cd-arranque-num" aria-hidden="true">
+              {i + 1}
+            </span>
+            <div>
+              <div className="cd-arranque-titulo">{p.t}</div>
+              <div className="cd-arranque-nota">{p.d}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="cd-arranque-soporte">
+        Nuestro acompañamiento no termina con la entrega: soporte continuo,
+        mantenimiento y actualizaciones para que el sistema evolucione con tu
+        negocio.
+      </p>
+      <div className="cd-garantia">
+        <span className="cd-garantia-sello" aria-hidden="true">
+          ✓
+        </span>
+        <div>
+          <div className="cd-garantia-titulo">Garantía</div>
+          <p>{GARANTIA}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // --- 10. Condiciones de arranque ---------------------------------------
 
 function Condiciones({ vm }: { vm: ClientDocVM }) {
   if (vm.advertencias.length === 0) return null;
   return (
     <section className="cd-section">
-      <SecHead n={9}>Condiciones de arranque</SecHead>
+      <SecHead n={10}>Condiciones de arranque</SecHead>
       <p className="cd-intro">{introAdvertencias(vm.advertencias.length)}</p>
       <ul className="cd-condiciones">
         {vm.advertencias.map((a, i) => (
@@ -753,7 +852,7 @@ function Inversion({
 
   return (
     <section className="cd-section cd-inversion">
-      <SecHead n={10}>Inversión y aceptación</SecHead>
+      <SecHead n={12}>Inversión y aceptación</SecHead>
 
       <div className="cd-price-block">
         {bloque.tieneDescuento ? (
