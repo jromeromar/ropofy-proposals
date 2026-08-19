@@ -272,7 +272,10 @@ function ClientPricePreview({
   autor: string;
   vigencia: string;
 }) {
-  const conDescuento = descuentoPct != null && vigencia.trim() !== "";
+  // The price recalculates as soon as a discount is entered. The vigencia only
+  // gates SENDING (see canSend) — it must not hide the computed price, or the
+  // discount looks like it does nothing.
+  const conDescuento = descuentoPct != null && descuentoPct > 0;
   return (
     <div className="cot-price-block">
       {conDescuento ? (
@@ -280,8 +283,12 @@ function ClientPricePreview({
           <div className="cot-price-strike">{formatPrice(precioLista, moneda)}</div>
           <div className="cot-price-final">{formatPrice(finalPrice, moneda)}</div>
           <div className="cot-price-line">
-            Condición registrada por {autor.trim() || "…"} · válida hasta{" "}
-            {safeVigencia(vigencia)}
+            −{descuentoPct}% · Condición registrada por {autor.trim() || "…"} ·{" "}
+            {vigencia.trim() !== "" ? (
+              <>válida hasta {safeVigencia(vigencia)}</>
+            ) : (
+              <em>define la vigencia para poder enviar</em>
+            )}
           </div>
         </>
       ) : (
