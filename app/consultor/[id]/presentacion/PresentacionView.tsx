@@ -70,6 +70,23 @@ const EditContext = createContext<EditCtx>({
   set: () => {},
 });
 
+// Numeric plan → contract plan name.
+const PLAN_NOMBRE: Record<Plan, PlanNombre> = {
+  1: "fundamental",
+  2: "avanzado",
+  3: "inteligente",
+};
+
+// "Incluir en este plan" quick action for locked cards in the plano.
+interface IncluirCtx {
+  incluyendoIdx: number | null;
+  incluir: (idx: number) => void;
+}
+const IncluirContext = createContext<IncluirCtx>({
+  incluyendoIdx: null,
+  incluir: () => {},
+});
+
 /** A field that becomes contentEditable in edit mode; commits on blur. */
 function Editable({
   k,
@@ -151,6 +168,23 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
     set: (kk, v) => setEdits((prev) => ({ ...prev, [kk]: v })),
   };
 
+  // Give a locked feature to the currently-selected plan (extend the scope).
+  const [incluyendoIdx, setIncluyendoIdx] = useState<number | null>(null);
+  async function incluirEnPlan(idx: number) {
+    setIncluyendoIdx(idx);
+    try {
+      const res = await guardarInline({
+        id,
+        ediciones: [{ campo: "compPlan", idx, plan: PLAN_NOMBRE[plan] }],
+      });
+      if (res.ok && typeof window !== "undefined") window.location.reload();
+      else setIncluyendoIdx(null);
+    } catch {
+      setIncluyendoIdx(null);
+    }
+  }
+  const incluirCtx: IncluirCtx = { incluyendoIdx, incluir: incluirEnPlan };
+
   function cancelarEdicion() {
     setEdits({});
     setEditing(false);
@@ -212,6 +246,7 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
 
   return (
     <EditContext.Provider value={editCtx}>
+    <IncluirContext.Provider value={incluirCtx}>
     <div className={`pv${editing ? " pv-editando" : ""}`}>
       <Portada cliente={vm.cliente} marca={marca ?? null} titular={vm.titular} />
 
@@ -298,6 +333,7 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
       <ADondeLlega vm={vm} plan={plan} />
       <Cierre id={id} plan={plan} precio={precio} />
     </div>
+    </IncluirContext.Provider>
     </EditContext.Provider>
   );
 }
@@ -746,6 +782,8 @@ function ComponentChips({ comp }: { comp: CompVM }) {
 }
 
 function ComponentCard({ comp, plan }: { comp: CompVM; plan: Plan }) {
+  const { editing } = useContext(EditContext);
+  const { incluyendoIdx, incluir } = useContext(IncluirContext);
   const locked = isLocked(comp.plan, plan);
   return (
     <div className={`pv-card${locked ? " locked" : ""}`}>
@@ -759,11 +797,25 @@ function ComponentCard({ comp, plan }: { comp: CompVM; plan: Plan }) {
       {locked && (
         <div className="pv-lock">🔒 {PLAN_LABEL[PLAN_RANK[comp.plan]]}</div>
       )}
+      {locked && !editing && (
+        <button
+          type="button"
+          className="pv-incluir"
+          onClick={() => incluir(comp.idx)}
+          disabled={incluyendoIdx !== null}
+        >
+          {incluyendoIdx === comp.idx
+            ? "Incluyendo…"
+            : `＋ Incluir en ${PLAN_LABEL[plan]}`}
+        </button>
+      )}
     </div>
   );
 }
 
 function AINode({ entries, plan }: { entries: CompVM[]; plan: Plan }) {
+  const { editing } = useContext(EditContext);
+  const { incluyendoIdx, incluir } = useContext(IncluirContext);
   const allLocked = entries.every((e) => isLocked(e.plan, plan));
   return (
     <div className={`pv-ai-node${allLocked ? " locked" : ""}`}>
@@ -775,6 +827,17 @@ function AINode({ entries, plan }: { entries: CompVM[]; plan: Plan }) {
             <span className={`pv-ai-chip${locked ? " locked" : ""}`} key={e.key}>
               <Editable k={`comp:${e.idx}`} value={e.nombre} />
               {locked && <em className="pv-ai-lock"> 🔒 {PLAN_LABEL[PLAN_RANK[e.plan]]}</em>}
+              {locked && !editing && (
+                <button
+                  type="button"
+                  className="pv-incluir-mini"
+                  title={`Incluir en ${PLAN_LABEL[plan]}`}
+                  onClick={() => incluir(e.idx)}
+                  disabled={incluyendoIdx !== null}
+                >
+                  {incluyendoIdx === e.idx ? "…" : "＋"}
+                </button>
+              )}
             </span>
           );
         })}
