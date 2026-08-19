@@ -30,7 +30,7 @@ import type {
   MadurezVM,
   InventarioItem,
 } from "@/lib/presentacionVM";
-import type { AsIs } from "@/lib/types";
+import type { AsIs, PlanNombre } from "@/lib/types";
 
 type Plan = 1 | 2 | 3;
 type PlanKey = "1" | "2" | "3";
@@ -115,18 +115,23 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
   // Feature inventory drawer state (pending include/exclude toggles by idx).
   const [invOpen, setInvOpen] = useState(false);
   const [invPend, setInvPend] = useState<Record<number, boolean>>({});
+  const [planPend, setPlanPend] = useState<Record<number, PlanNombre>>({});
   const [invSaving, setInvSaving] = useState(false);
   const invIncluido = (idx: number, base: boolean) =>
     idx in invPend ? invPend[idx] : base;
+  const invPlan = (idx: number, base: PlanNombre) =>
+    idx in planPend ? planPend[idx] : base;
 
   async function aplicarInventario() {
-    const ediciones: EdicionInline[] = vm.inventario
-      .filter((it) => invIncluido(it.idx, it.incluido) !== it.incluido)
-      .map((it) => ({
-        campo: "compIncluido" as const,
-        idx: it.idx,
-        incluido: invIncluido(it.idx, it.incluido),
-      }));
+    const ediciones: EdicionInline[] = [];
+    for (const it of vm.inventario) {
+      const inc = invIncluido(it.idx, it.incluido);
+      if (inc !== it.incluido)
+        ediciones.push({ campo: "compIncluido", idx: it.idx, incluido: inc });
+      const pl = invPlan(it.idx, it.plan);
+      if (pl !== it.plan)
+        ediciones.push({ campo: "compPlan", idx: it.idx, plan: pl });
+    }
     if (ediciones.length === 0) {
       setInvOpen(false);
       return;
@@ -257,6 +262,7 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
               className="btn btn-secondary btn-sm"
               onClick={() => {
                 setInvPend({});
+                setPlanPend({});
                 setInvOpen(true);
               }}
             >
@@ -276,7 +282,9 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
         open={invOpen}
         inventario={vm.inventario}
         incluidoDe={invIncluido}
+        planDe={invPlan}
         onToggle={(idx, v) => setInvPend((prev) => ({ ...prev, [idx]: v }))}
+        onPlan={(idx, pl) => setPlanPend((prev) => ({ ...prev, [idx]: pl }))}
         onAplicar={aplicarInventario}
         onCerrar={() => setInvOpen(false)}
         saving={invSaving}
@@ -296,11 +304,19 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
 
 // --- feature inventory drawer (Power BI style) --------------------------
 
+const PLAN_OPCIONES: Array<{ v: PlanNombre; label: string }> = [
+  { v: "fundamental", label: "Fundamental" },
+  { v: "avanzado", label: "Avanzado" },
+  { v: "inteligente", label: "Inteligente" },
+];
+
 function InventarioDrawer({
   open,
   inventario,
   incluidoDe,
+  planDe,
   onToggle,
+  onPlan,
   onAplicar,
   onCerrar,
   saving,
@@ -308,7 +324,9 @@ function InventarioDrawer({
   open: boolean;
   inventario: InventarioItem[];
   incluidoDe: (idx: number, base: boolean) => boolean;
+  planDe: (idx: number, base: PlanNombre) => PlanNombre;
   onToggle: (idx: number, v: boolean) => void;
+  onPlan: (idx: number, plan: PlanNombre) => void;
   onAplicar: () => void;
   onCerrar: () => void;
   saving: boolean;
@@ -330,7 +348,8 @@ function InventarioDrawer({
           <div>
             <div className="pv-drawer-title">Funcionalidades</div>
             <div className="pv-drawer-sub">
-              {seleccionadas} de {total} en el plano
+              {seleccionadas} de {total} en el plano · baja el plan de una
+              función para incluirla en un plan inferior
             </div>
           </div>
           <button type="button" className="pv-drawer-x" onClick={onCerrar}>
@@ -344,19 +363,32 @@ function InventarioDrawer({
               <div className="pv-drawer-banda">{g.name}</div>
               {g.items.map((it) => {
                 const on = incluidoDe(it.idx, it.incluido);
+                const pl = planDe(it.idx, it.plan);
                 return (
-                  <label
+                  <div
                     key={it.idx}
                     className={`pv-drawer-row${on ? "" : " off"}`}
                   >
                     <input
                       type="checkbox"
                       checked={on}
+                      aria-label={`Incluir ${it.nombre}`}
                       onChange={(e) => onToggle(it.idx, e.target.checked)}
                     />
                     <span className="pv-drawer-nombre">{it.nombre}</span>
-                    <span className="pv-drawer-plan">{PLAN_LABEL[PLAN_RANK[it.plan]]}</span>
-                  </label>
+                    <select
+                      className="pv-drawer-plan-sel"
+                      value={pl}
+                      aria-label={`Plan de ${it.nombre}`}
+                      onChange={(e) => onPlan(it.idx, e.target.value as PlanNombre)}
+                    >
+                      {PLAN_OPCIONES.map((o) => (
+                        <option key={o.v} value={o.v}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 );
               })}
             </div>

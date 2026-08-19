@@ -10,13 +10,14 @@
 
 import { validateProposal } from "@/lib/validateProposal";
 import { storage } from "@/lib/storage";
-import type { Proposal } from "@/lib/types";
+import type { Proposal, PlanNombre } from "@/lib/types";
 
 export type EdicionInline =
   | { campo: "titular" | "cliente" | "marca"; valor: string }
   | { campo: "fugaTitulo" | "fugaValor"; idx: number; valor: string }
   | { campo: "compNombre"; idx: number; valor: string }
-  | { campo: "compIncluido"; idx: number; incluido: boolean };
+  | { campo: "compIncluido"; idx: number; incluido: boolean }
+  | { campo: "compPlan"; idx: number; plan: PlanNombre };
 
 export type GuardarInlineResult = { ok: true } | { ok: false; errors: string[] };
 
@@ -58,6 +59,11 @@ export async function guardarInline(input: {
       case "compIncluido": {
         const k = keys[e.idx];
         if (k) data.componentes[k].incluido = e.incluido;
+        break;
+      }
+      case "compPlan": {
+        const k = keys[e.idx];
+        if (k) data.componentes[k].plan = e.plan;
         break;
       }
     }

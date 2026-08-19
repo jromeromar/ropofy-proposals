@@ -114,6 +114,26 @@ describe("editar inline (presentación) — ediciones por índice posicional", (
     expect(after?.data.componentes[keys[0]].incluido).toBe(true);
   });
 
+  it("baja el plan de una función para ampliar el alcance de un plan inferior", async () => {
+    const stored = await storage.saveProposal(loadFixture());
+    const keys = Object.keys(stored.data.componentes);
+    // Find an "inteligente" feature and give it to "avanzado".
+    const idx = keys.findIndex(
+      (k) => stored.data.componentes[k].plan === "inteligente",
+    );
+    expect(idx).toBeGreaterThanOrEqual(0);
+
+    const res = await guardarInline({
+      id: stored.id,
+      ediciones: [{ campo: "compPlan", idx, plan: "avanzado" }],
+    });
+    expect(res.ok).toBe(true);
+
+    const after = await storage.getProposal(stored.id);
+    expect(after?.data.componentes[keys[idx]].plan).toBe("avanzado");
+    expect(after?.version).toBe("v1");
+  });
+
   it("edita una fuga por su índice y valida (contrato)", async () => {
     const stored = await storage.saveProposal(loadFixture());
     const idx = stored.data.fugas.findIndex((f) => f.dominante === true);
