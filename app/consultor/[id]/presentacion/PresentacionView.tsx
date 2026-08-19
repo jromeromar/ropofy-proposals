@@ -217,13 +217,18 @@ function Portada({ cliente, titular }: { cliente: string; titular: string }) {
 
 // --- 2. Lo que entendimos ----------------------------------------------
 
+// Headline figures come from each row's explicit `cifra` (third element),
+// never scraped from the note — so no phantom numbers. A row without a cifra
+// shows no tile; the label is its unit, falling back to the channel name.
 function extractStats(asIs: AsIs): { value: string; label: string }[] {
   const cols = [asIs.de_donde_llegan, asIs.por_donde_pasan, asIs.donde_queda];
   const out: { value: string; label: string }[] = [];
   for (const col of cols) {
-    for (const [label, note] of col) {
-      const matches = String(note).match(/\d[\d.,]*\s*%?/g);
-      if (matches) for (const m of matches) out.push({ value: m.trim(), label });
+    for (const fila of col) {
+      const [canal, , extra] = fila;
+      const cifra = extra?.cifra?.trim();
+      if (!cifra) continue;
+      out.push({ value: cifra, label: extra?.unidad?.trim() || canal });
     }
   }
   return out;

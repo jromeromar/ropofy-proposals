@@ -161,6 +161,22 @@ function isPair(v: unknown): v is [string, string] {
   return Array.isArray(v) && v.length === 2 && isString(v[0]) && isString(v[1]);
 }
 
+/**
+ * An as_is row: [canal, nota] and an OPTIONAL third element { cifra: string,
+ * unidad?: string }. Indices 0 and 1 are always two strings.
+ */
+function isAsIsFila(v: unknown): boolean {
+  if (!Array.isArray(v) || v.length < 2 || v.length > 3) return false;
+  if (!isString(v[0]) || !isString(v[1])) return false;
+  if (v.length === 2) return true;
+  const extra = v[2];
+  if (!isPlainObject(extra)) return false;
+  if (!isString(extra.cifra)) return false;
+  if ("unidad" in extra && extra.unidad != null && !isString(extra.unidad))
+    return false;
+  return true;
+}
+
 // --- main ---------------------------------------------------------------
 
 export function validateProposal(input: unknown): ValidationResult {
@@ -216,10 +232,10 @@ function validateAsIs(asIs: unknown, errors: string[]): void {
       errors.push(`El bloque «as_is.${col}» debe ser un arreglo y llegó ${tipoEs(val)}.`);
       continue;
     }
-    val.forEach((par, i) => {
-      if (!isPair(par))
+    val.forEach((fila, i) => {
+      if (!isAsIsFila(fila))
         errors.push(
-          `El elemento «as_is.${col}[${i}]» debe ser un par [etiqueta, nota] de textos (llegó ${muestra(par)}).`,
+          `El elemento «as_is.${col}[${i}]» debe ser [etiqueta, nota] de textos, con un tercer elemento opcional { cifra, unidad? } (llegó ${muestra(fila)}).`,
         );
     });
   }
