@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import path from "path";
 import { storage } from "@/lib/storage";
 import { guardarContenido } from "@/app/consultor/[id]/editar/actions";
+import { guardarInline } from "@/app/consultor/[id]/presentacion/actions";
 import type { Proposal } from "@/lib/types";
 
 function loadFixture(): Proposal {
@@ -60,5 +61,58 @@ describe("editar contenido — corrección en vivo", () => {
     // The stored draft is untouched when validation fails.
     const after = await storage.getProposal(stored.id);
     expect(after?.data.titular).toBe(stored.data.titular);
+  });
+});
+
+describe("editar inline (presentación) — ediciones por índice posicional", () => {
+  it("resuelve el índice de componente a su clave real y persiste", async () => {
+    const stored = await storage.saveProposal(loadFixture());
+    const keys = Object.keys(stored.data.componentes);
+
+    const res = await guardarInline({
+      id: stored.id,
+      ediciones: [
+        { campo: "titular", valor: "Titular inline" },
+        { campo: "cliente", valor: "Bifteki S.A.S." },
+        { campo: "marca", valor: "Gosen Casa de Comidas" },
+        { campo: "compNombre", idx: 0, valor: "Primer componente renombrado" },
+      ],
+    });
+    expect(res.ok).toBe(true);
+
+    const after = await storage.getProposal(stored.id);
+    expect(after?.data.titular).toBe("Titular inline");
+    expect(after?.cliente).toBe("Bifteki S.A.S.");
+    expect(after?.marca).toBe("Gosen Casa de Comidas");
+    expect(after?.data.componentes[keys[0]].nombre_cliente).toBe(
+      "Primer componente renombrado",
+    );
+    expect(after?.version).toBe("v1");
+  });
+
+  it("edita una fuga por su índice y valida (contrato)", async () => {
+    const stored = await storage.saveProposal(loadFixture());
+    const idx = stored.data.fugas.findIndex((f) => f.dominante === true);
+    expect(idx).toBeGreaterThanOrEqual(0);
+
+    const res = await guardarInline({
+      id: stored.id,
+      ediciones: [
+        { campo: "fugaTitulo", idx, valor: "Fuga dominante corregida" },
+        { campo: "fugaValor", idx, valor: "9.999" },
+      ],
+    });
+    expect(res.ok).toBe(true);
+
+    const after = await storage.getProposal(stored.id);
+    expect(after?.data.fugas[idx].titulo).toBe("Fuga dominante corregida");
+    expect(String(after?.data.fugas[idx].cuantificacion.valor)).toBe("9.999");
+
+    // Contract still enforced: emptying the title is rejected.
+    const bad = await guardarInline({
+      id: stored.id,
+      ediciones: [{ campo: "fugaTitulo", idx, valor: "   " }],
+    });
+    expect(bad.ok).toBe(false);
   });
 });

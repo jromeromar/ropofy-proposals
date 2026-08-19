@@ -10,8 +10,17 @@
  * Exported plainly (no next/link) so it can be server-rendered in tests.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ElementType,
+  type ReactNode,
+} from "react";
 import { formatPrice } from "@/lib/rules";
+import { guardarInline, type EdicionInline } from "./actions";
 import { gradeForPlan } from "@/lib/grade";
 import { isLocked, PLAN_RANK, PLAN_LABEL } from "@/lib/mapLayout";
 import type {
@@ -47,10 +56,110 @@ interface Props {
   initialPlan?: Plan;
 }
 
+// Inline-edit context: lets deeply-nested fields become editable without
+// threading props through every component.
+interface EditCtx {
+  editing: boolean;
+  get: (k: string, fallback: string) => string;
+  set: (k: string, v: string) => void;
+}
+const EditContext = createContext<EditCtx>({
+  editing: false,
+  get: (_k, f) => f,
+  set: () => {},
+});
+
+/** A field that becomes contentEditable in edit mode; commits on blur. */
+function Editable({
+  k,
+  value,
+  as,
+  className,
+}: {
+  k: string;
+  value: string;
+  as?: ElementType;
+  className?: string;
+}) {
+  const { editing, get, set } = useContext(EditContext);
+  const Tag = as ?? "span";
+  const shown = get(k, value);
+  if (!editing) return <Tag className={className}>{shown}</Tag>;
+  return (
+    <Tag
+      className={`${className ? className + " " : ""}pv-ed-field`}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      onBlur={(e: React.FocusEvent<HTMLElement>) =>
+        set(k, e.currentTarget.textContent ?? "")
+      }
+    >
+      {shown}
+    </Tag>
+  );
+}
+
 export default function PresentacionView({ id, vm, marca, initialPlan }: Props) {
   const [plan, setPlan] = useState<Plan>(initialPlan ?? vm.planRecomendado);
   const [showFloating, setShowFloating] = useState(false);
   const switcherRef = useRef<HTMLDivElement | null>(null);
+
+  // Inline editing state.
+  const [editing, setEditing] = useState(false);
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const editCtx: EditCtx = {
+    editing,
+    get: (kk, fallback) => (kk in edits ? edits[kk] : fallback),
+    set: (kk, v) => setEdits((prev) => ({ ...prev, [kk]: v })),
+  };
+
+  function cancelarEdicion() {
+    setEdits({});
+    setEditing(false);
+    setSaveError(null);
+  }
+
+  async function guardarEdicion() {
+    const ediciones: EdicionInline[] = [];
+    for (const [kk, valor] of Object.entries(edits)) {
+      if (kk === "titular" || kk === "cliente" || kk === "marca") {
+        ediciones.push({ campo: kk, valor });
+      } else if (kk.startsWith("fuga:")) {
+        const [, idxStr, campo] = kk.split(":");
+        const idx = Number(idxStr);
+        if (campo === "titulo") ediciones.push({ campo: "fugaTitulo", idx, valor });
+        else if (campo === "valor") ediciones.push({ campo: "fugaValor", idx, valor });
+      } else if (kk.startsWith("comp:")) {
+        const idx = Number(kk.slice(5));
+        ediciones.push({ campo: "compNombre", idx, valor });
+      }
+    }
+    if (ediciones.length === 0) {
+      cancelarEdicion();
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await guardarInline({ id, ediciones });
+      if (res.ok) {
+        setEdits({});
+        setEditing(false);
+        // Reload so the server rebuilds the VM from the corrected draft.
+        if (typeof window !== "undefined") window.location.reload();
+      } else {
+        setSaveError(res.errors[0] ?? "No se pudo guardar.");
+      }
+    } catch {
+      setSaveError("No se pudo guardar. Intenta de nuevo.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   useEffect(() => {
     const el = switcherRef.current;
@@ -68,7 +177,8 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
   const precio = precioDe(plan);
 
   return (
-    <div className="pv">
+    <EditContext.Provider value={editCtx}>
+    <div className={`pv${editing ? " pv-editando" : ""}`}>
       <Portada cliente={vm.cliente} marca={marca ?? null} titular={vm.titular} />
 
       <div ref={switcherRef}>
@@ -82,9 +192,46 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
         precio={precio}
       />
 
-      <a className="pv-editar" href={`/consultor/${id}/editar`}>
-        Editar contenido
-      </a>
+      <div className="pv-edit-toolbar">
+        {editing ? (
+          <>
+            {saveError && <span className="pv-edit-error">{saveError}</span>}
+            <span className="pv-edit-hint">Edición en vivo</span>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={cancelarEdicion}
+              disabled={saving}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={guardarEdicion}
+              disabled={saving}
+            >
+              {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setEditing(true)}
+            >
+              Editar aquí
+            </button>
+            <a
+              href={`/consultor/${id}/editar`}
+              className="btn btn-secondary btn-sm"
+            >
+              Editar todo →
+            </a>
+          </>
+        )}
+      </div>
 
       <Entendimos asIs={vm.asIs} />
       <Fugas vm={vm} />
@@ -94,6 +241,7 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
       <ADondeLlega vm={vm} plan={plan} />
       <Cierre id={id} plan={plan} precio={precio} />
     </div>
+    </EditContext.Provider>
   );
 }
 
@@ -202,6 +350,7 @@ function Portada({
   marca: string | null;
   titular: string;
 }) {
+  const { editing } = useContext(EditContext);
   const fecha = new Intl.DateTimeFormat("es-CO", {
     year: "numeric",
     month: "long",
@@ -217,11 +366,23 @@ function Portada({
           Ropofy
         </div>
         <div className="pv-eyebrow">Arquitectura comercial</div>
-        <h1 className="pv-titular">{titular}</h1>
+        <Editable k="titular" value={titular} as="h1" className="pv-titular" />
         <div className="pv-hero-meta">
-          <span>
-            <b>{marca ? `${marca} (${cliente})` : cliente}</b>
-          </span>
+          {editing ? (
+            <>
+              <span>
+                Marca:{" "}
+                <Editable k="marca" value={marca ?? ""} className="pv-ed-min" />
+              </span>
+              <span>
+                Razón social: <Editable k="cliente" value={cliente} />
+              </span>
+            </>
+          ) : (
+            <span>
+              <b>{marca ? `${marca} (${cliente})` : cliente}</b>
+            </span>
+          )}
           <span>{fecha}</span>
         </div>
       </div>
@@ -282,8 +443,18 @@ function Fugas({ vm }: { vm: PresentacionVM }) {
       <SecHead n={2}>Las fugas</SecHead>
       {vm.fugaDominante && (
         <div className="pv-fuga-dominante">
-          <h3 className="pv-fuga-titulo">{vm.fugaDominante.titulo}</h3>
-          <div className="pv-fuga-cifra">{vm.fugaDominante.valor}</div>
+          <Editable
+            k={`fuga:${vm.fugaDominante.idx}:titulo`}
+            value={vm.fugaDominante.titulo}
+            as="h3"
+            className="pv-fuga-titulo"
+          />
+          <Editable
+            k={`fuga:${vm.fugaDominante.idx}:valor`}
+            value={vm.fugaDominante.valor}
+            as="div"
+            className="pv-fuga-cifra"
+          />
         </div>
       )}
       <div className="pv-fugas-grid">
@@ -296,7 +467,12 @@ function Fugas({ vm }: { vm: PresentacionVM }) {
                 : "pv-fuga";
           return (
             <div className={cls} key={i}>
-              <div className="pv-fuga-min-titulo">{f.titulo}</div>
+              <Editable
+                k={`fuga:${f.idx}:titulo`}
+                value={f.titulo}
+                as="div"
+                className="pv-fuga-min-titulo"
+              />
               {f.estado === "mitigable" && (
                 <div className="pv-fuga-nota">
                   Depende de: {f.dependeDeTercero ? "un tercero" : "nadie externo"}
@@ -400,7 +576,12 @@ function ComponentCard({ comp, plan }: { comp: CompVM; plan: Plan }) {
   const locked = isLocked(comp.plan, plan);
   return (
     <div className={`pv-card${locked ? " locked" : ""}`}>
-      <div className="pv-card-nombre">{comp.nombre}</div>
+      <Editable
+        k={`comp:${comp.idx}`}
+        value={comp.nombre}
+        as="div"
+        className="pv-card-nombre"
+      />
       <ComponentChips comp={comp} />
       {locked && (
         <div className="pv-lock">🔒 {PLAN_LABEL[PLAN_RANK[comp.plan]]}</div>
@@ -419,7 +600,7 @@ function AINode({ entries, plan }: { entries: CompVM[]; plan: Plan }) {
           const locked = isLocked(e.plan, plan);
           return (
             <span className={`pv-ai-chip${locked ? " locked" : ""}`} key={e.key}>
-              {e.nombre}
+              <Editable k={`comp:${e.idx}`} value={e.nombre} />
               {locked && <em className="pv-ai-lock"> 🔒 {PLAN_LABEL[PLAN_RANK[e.plan]]}</em>}
             </span>
           );
