@@ -157,6 +157,8 @@ export function buildLayout(
   for (const name of BAND_ORDER) buckets.set(name, { regular: [], ai: [] });
 
   for (const [id, comp] of Object.entries(componentes)) {
+    // Features the consultant removed stay in the data but leave the plano.
+    if (comp.incluido === false) continue;
     const band = bandFromJourney(comp.journey);
     const bucket = buckets.get(band)!;
     if (isAIComponent(comp)) bucket.ai.push({ id, comp });

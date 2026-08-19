@@ -95,6 +95,8 @@ export function buildClientDocument(
   const componentes = (doc.componentes ?? {}) as Record<string, Record<string, unknown>>;
   let n = 0;
   for (const comp of Object.values(componentes)) {
+    // Removed features never reach the client snapshot.
+    if (comp.incluido === false) continue;
     n += 1;
     safe[`c${n}`] = {
       nombre_cliente: comp.nombre_cliente,

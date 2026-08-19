@@ -130,6 +130,35 @@ describe("as_is stats — cifra explícita, nunca escarbada", () => {
   });
 });
 
+describe("inventario — funcionalidad removida (incluido:false)", () => {
+  it("una funcionalidad removida no llega al snapshot del cliente pero sigue en el borrador", () => {
+    const data = loadFixture();
+    const keys = Object.keys(data.componentes);
+    const target = keys[0];
+    const nombre = data.componentes[target].nombre_cliente;
+    data.componentes[target].incluido = false;
+
+    const condicion = construirCondicion(data, 2, {
+      descuentoPct: null,
+      vigencia: null,
+      autor: "Ana Consultora",
+      aprobador: null,
+    });
+    const doc = buildClientDocument(data, condicion, 2);
+
+    // The removed feature's client name is absent from the frozen snapshot…
+    const nombres = Object.values(
+      doc.componentes as Record<string, { nombre_cliente: string }>,
+    ).map((c) => c.nombre_cliente);
+    expect(nombres).not.toContain(nombre);
+    // …one fewer than the total.
+    expect(nombres.length).toBe(keys.length - 1);
+    // …but it is still in the source draft (recoverable).
+    expect(data.componentes[target].incluido).toBe(false);
+    expect(data.componentes[target].nombre_cliente).toBe(nombre);
+  });
+});
+
 describe("buildClientDocument — sin descuento", () => {
   it("la condición aplicada no lleva descuento ni línea de condición", () => {
     const { doc } = buildDoc(null);

@@ -9,6 +9,7 @@
 
 import { useMemo, useState } from "react";
 import type { Proposal, AsIsCifra, Fuga, Componente } from "@/lib/types";
+import { bandFromJourney, BAND_ORDER, type BandName } from "@/lib/mapLayout";
 import { guardarContenido } from "./actions";
 
 type AsIsColKey = "de_donde_llegan" | "por_donde_pasan" | "donde_queda";
@@ -48,6 +49,25 @@ export default function EditForm({
     () => Object.entries(p.componentes) as Array<[string, Componente]>,
     [p.componentes],
   );
+
+  const [showInv, setShowInv] = useState(false);
+
+  // Group every component by its journey band (included AND removed) so the
+  // inventory mirrors the plano's sections.
+  const inventarioPorBanda = useMemo(() => {
+    const map = new Map<BandName, Array<[string, Componente]>>();
+    for (const name of BAND_ORDER) map.set(name, []);
+    for (const [key, comp] of componentes) {
+      map.get(bandFromJourney(comp.journey))!.push([key, comp]);
+    }
+    return BAND_ORDER.map((name) => ({ name, items: map.get(name)! })).filter(
+      (g) => g.items.length > 0,
+    );
+  }, [componentes]);
+
+  const seleccionadas = componentes.filter(
+    ([, c]) => c.incluido !== false,
+  ).length;
 
   // Immutable update: clone, mutate, set.
   function edit(mutator: (draft: Proposal) => void) {
@@ -262,38 +282,78 @@ export default function EditForm({
         ))}
       </section>
 
-      {/* Componentes */}
+      {/* Inventario de funcionalidades */}
       <section className="card stack ed-sec">
-        <h2>Componentes ({componentes.length})</h2>
+        <div className="ed-inv-head">
+          <h2>Inventario de funcionalidades</h2>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setShowInv((v) => !v)}
+          >
+            {showInv ? "Ocultar inventario" : "Mostrar inventario"}
+          </button>
+        </div>
         <p className="muted" style={{ marginTop: -8 }}>
-          Nombre visible para el cliente y su beneficio. El resto (plan,
-          instancias, journey) se mantiene tal como llegó del pipeline.
+          {seleccionadas} de {componentes.length} funcionalidades están en el
+          plano. Desmarca una para quitarla del plano (y del documento del
+          cliente); no se pierde: queda aquí, sin marcar, y puedes volver a
+          activarla cuando quieras.
         </p>
-        {componentes.map(([key, comp]) => (
-          <div key={key} className="ed-comp">
-            <div className="ed-comp-head">
-              <span className="ed-tag">{PLAN_LABELS[comp.plan] ?? comp.plan}</span>
-              {comp.instancias > 1 && <span className="ed-tag">×{comp.instancias}</span>}
+
+        {showInv &&
+          inventarioPorBanda.map((grupo) => (
+            <div key={grupo.name} className="ed-subsec">
+              <h3>{grupo.name}</h3>
+              {grupo.items.map(([key, comp]) => {
+                const incluida = comp.incluido !== false;
+                return (
+                  <div
+                    key={key}
+                    className={`ed-inv-row${incluida ? "" : " off"}`}
+                  >
+                    <label className="ed-inv-check">
+                      <input
+                        type="checkbox"
+                        checked={incluida}
+                        onChange={(e) =>
+                          edit((d) => (d.componentes[key].incluido = e.target.checked))
+                        }
+                      />
+                    </label>
+                    <div className="ed-inv-fields">
+                      <input
+                        type="text"
+                        value={comp.nombre_cliente}
+                        aria-label="Nombre visible"
+                        onChange={(e) =>
+                          edit((d) => (d.componentes[key].nombre_cliente = e.target.value))
+                        }
+                      />
+                      <input
+                        type="text"
+                        value={comp.beneficio ?? ""}
+                        placeholder="Beneficio (opcional)"
+                        aria-label="Beneficio"
+                        onChange={(e) =>
+                          edit((d) => (d.componentes[key].beneficio = e.target.value))
+                        }
+                      />
+                    </div>
+                    <div className="ed-inv-tags">
+                      <span className="ed-tag">
+                        {PLAN_LABELS[comp.plan] ?? comp.plan}
+                      </span>
+                      {comp.instancias > 1 && (
+                        <span className="ed-tag">×{comp.instancias}</span>
+                      )}
+                      {!incluida && <span className="ed-tag ed-tag-off">fuera</span>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <Campo label="Nombre visible">
-              <input
-                type="text"
-                value={comp.nombre_cliente}
-                onChange={(e) =>
-                  edit((d) => (d.componentes[key].nombre_cliente = e.target.value))
-                }
-              />
-            </Campo>
-            <Campo label="Beneficio">
-              <input
-                type="text"
-                value={comp.beneficio ?? ""}
-                placeholder="Opcional"
-                onChange={(e) => edit((d) => (d.componentes[key].beneficio = e.target.value))}
-              />
-            </Campo>
-          </div>
-        ))}
+          ))}
       </section>
 
       {/* Condiciones de arranque */}
