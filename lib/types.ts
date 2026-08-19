@@ -82,6 +82,12 @@ export interface Componente {
   cuota?: string | null;
   /** Optional benefit/description shown beneath the name in the client doc. */
   beneficio?: string;
+  /**
+   * Whether this feature is shown in the plano. Absent/true = shown; false =
+   * removed by the consultant but KEPT in the data (recoverable from the
+   * inventory). Excluded features never reach the plano or the client snapshot.
+   */
+  incluido?: boolean;
 }
 
 export interface MultiplicadorPlan {
