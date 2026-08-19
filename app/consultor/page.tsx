@@ -12,6 +12,8 @@ function formatFecha(iso: string): string {
       year: "numeric",
       month: "short",
       day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     }).format(new Date(iso));
   } catch {
     return iso;
