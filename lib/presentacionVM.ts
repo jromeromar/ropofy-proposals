@@ -22,6 +22,12 @@ import type {
 export interface CompVM {
   /** Synthesised, id-free React key (never the internal component id). */
   key: string;
+  /**
+   * Positional index into the proposal's `componentes` enumeration. A plain
+   * number (not an internal id), used only to address the field for inline
+   * edits; the server resolves it back to the real key.
+   */
+  idx: number;
   nombre: string;
   plan: PlanNombre;
   instancias: number;
@@ -36,6 +42,8 @@ export interface BandVM {
 }
 
 export interface FugaVM {
+  /** Positional index into the proposal's `fugas` array (for inline edits). */
+  idx: number;
   titulo: string;
   estado: EstadoFuga;
   dependeDeTercero: boolean;
@@ -51,7 +59,7 @@ export interface PresentacionVM {
   cliente: string;
   titular: string;
   asIs: AsIs;
-  fugaDominante: { titulo: string; valor: string } | null;
+  fugaDominante: { idx: number; titulo: string; valor: string } | null;
   fugasResto: FugaVM[];
   nota: { letra: LetraNota; puntos: number };
   /** Sector average maturity per module (0-4), or null. */
@@ -66,18 +74,30 @@ export interface PresentacionVM {
 }
 
 export function toPresentacionVM(proposal: Proposal): PresentacionVM {
+  // Positional index of each component in the `componentes` enumeration. The
+  // server resolves this number back to the real (internal) key on save, so
+  // the key itself never crosses to the client.
+  const idxDe = new Map<object, number>();
+  Object.values(proposal.componentes).forEach((c, i) => idxDe.set(c, i));
+
   const layout = buildLayout(proposal.componentes);
   const bands: BandVM[] = layout.map((band) => ({
     name: band.name,
     numero: band.numero,
-    regular: band.regular.map((e, i) => toCompVM(e.comp, `b${band.numero}r${i}`)),
-    ai: band.ai.map((e, i) => toCompVM(e.comp, `b${band.numero}a${i}`)),
+    regular: band.regular.map((e, i) =>
+      toCompVM(e.comp, `b${band.numero}r${i}`, idxDe.get(e.comp) ?? -1),
+    ),
+    ai: band.ai.map((e, i) =>
+      toCompVM(e.comp, `b${band.numero}a${i}`, idxDe.get(e.comp) ?? -1),
+    ),
   }));
 
-  const dominante = proposal.fugas.find((f) => f.dominante === true);
+  const dominanteIdx = proposal.fugas.findIndex((f) => f.dominante === true);
   const fugasResto: FugaVM[] = proposal.fugas
-    .filter((f) => f.dominante !== true)
-    .map((f) => ({
+    .map((f, idx) => ({ f, idx }))
+    .filter(({ f }) => f.dominante !== true)
+    .map(({ f, idx }) => ({
+      idx,
       titulo: f.titulo,
       estado: f.estado,
       dependeDeTercero: Boolean(f.depende_de_tercero),
@@ -87,9 +107,14 @@ export function toPresentacionVM(proposal: Proposal): PresentacionVM {
     cliente: proposal.cliente,
     titular: proposal.titular,
     asIs: proposal.as_is,
-    fugaDominante: dominante
-      ? { titulo: dominante.titulo, valor: String(dominante.cuantificacion.valor) }
-      : null,
+    fugaDominante:
+      dominanteIdx >= 0
+        ? {
+            idx: dominanteIdx,
+            titulo: proposal.fugas[dominanteIdx].titulo,
+            valor: String(proposal.fugas[dominanteIdx].cuantificacion.valor),
+          }
+        : null,
     fugasResto,
     nota: { letra: proposal.nota.letra, puntos: proposal.nota.puntos },
     benchmarkModulos: benchmarkPorModulo(
@@ -108,9 +133,11 @@ export function toPresentacionVM(proposal: Proposal): PresentacionVM {
 function toCompVM(
   comp: Proposal["componentes"][string],
   key: string,
+  idx: number,
 ): CompVM {
   return {
     key,
+    idx,
     nombre: comp.nombre_cliente,
     plan: comp.plan,
     instancias: comp.instancias,

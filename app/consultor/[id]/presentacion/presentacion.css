@@ -818,31 +818,67 @@
   text-decoration: none;
 }
 
-/* Editar contenido — control discreto del consultor (no para el cliente) */
-.pv-editar {
+/* Edición en vivo — barra y campos editables (control del consultor) */
+.pv-edit-toolbar {
   position: fixed;
   left: 16px;
   bottom: 16px;
   z-index: 45;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--color-primary-dark);
-  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(6px);
   border: 1.5px solid var(--color-primary-tinte2);
   border-radius: 999px;
-  padding: 8px 14px;
-  text-decoration: none;
-  box-shadow: 0 6px 18px rgba(35, 42, 69, 0.1);
+  box-shadow: 0 6px 18px rgba(35, 42, 69, 0.12);
 }
-.pv-editar:hover {
-  border-color: var(--color-primary);
-  text-decoration: none;
+.pv-edit-hint {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  padding: 0 4px;
+}
+.pv-edit-error {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b91c1c;
+  max-width: 240px;
 }
 @media print {
-  .pv-editar {
+  .pv-edit-toolbar {
     display: none;
   }
+}
+
+/* Editable fields highlight while in edit mode. */
+.pv-ed-field {
+  outline: 1.5px dashed var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 3px;
+  cursor: text;
+}
+.pv-ed-field:focus {
+  outline: 2px solid var(--color-primary);
+  background: var(--color-primary-tinte);
+}
+.pv-ed-min {
+  display: inline-block;
+  min-width: 90px;
+}
+/* On the purple hero, the dashed outline needs to read against white text. */
+.pv-hero .pv-ed-field {
+  outline-color: rgba(255, 255, 255, 0.6);
+}
+.pv-hero .pv-ed-field:focus {
+  outline-color: var(--color-accent);
+  background: rgba(255, 255, 255, 0.14);
+}
+.pv-editando .pv-fuga-cifra.pv-ed-field {
+  display: inline-block;
 }
 
 /* --- Print (A4) -------------------------------------------------------- */
