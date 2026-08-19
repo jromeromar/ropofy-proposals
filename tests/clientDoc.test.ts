@@ -162,6 +162,26 @@ describe("documento del cliente — marca", () => {
   });
 });
 
+describe("documento del cliente — prueba social y garantía", () => {
+  const text = visibleText(
+    renderDoc({
+      descuentoPct: null,
+      vigencia: null,
+      nowIso: "2026-08-20T00:00:00.000Z",
+    }),
+  );
+  it("incluye casos de éxito (prueba social)", () => {
+    expect(text).toContain("Empresas que ya trabajan con nosotros");
+    expect(text).toContain("Palacio Bienes Raíces");
+  });
+  it("incluye el acompañamiento y la garantía", () => {
+    expect(text).toContain("Cómo arrancamos");
+    expect(text).toContain(
+      "te devolvemos el 100% de tu inversión",
+    );
+  });
+});
+
 describe("documento del cliente — contenido y aceptación", () => {
   it("se explica solo: incluye prose, cita y clave de lectura", () => {
     const text = visibleText(
