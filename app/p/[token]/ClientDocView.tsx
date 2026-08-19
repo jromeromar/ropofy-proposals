@@ -8,7 +8,7 @@
  * routes, no discount controls, no internal data.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { formatPrice } from "@/lib/rules";
 import { gradeForPlan } from "@/lib/grade";
 import { bloquePrecioEfectivo } from "@/lib/condition";
@@ -121,8 +121,13 @@ export default function ClientDocView({
 
   return (
     <article className="cd">
+      <FloatingPlanes
+        plan={plan}
+        onSelect={setPlan}
+        moneda={vm.moneda}
+        precioDe={precioDe}
+      />
       <Portada vm={vm} />
-      <PlanSwitcher plan={plan} onSelect={setPlan} moneda={vm.moneda} precioDe={precioDe} />
       <Entendimos vm={vm} />
       <SistemaHoy vm={vm} />
       <Fugas vm={vm} />
@@ -144,26 +149,60 @@ export default function ClientDocView({
   );
 }
 
-// --- 1. Portada ---------------------------------------------------------
+// --- Numbered section head ---------------------------------------------
+
+function SecHead({
+  n,
+  children,
+  small,
+}: {
+  n: number;
+  children: ReactNode;
+  small?: string;
+}) {
+  return (
+    <div className="cd-sec-head">
+      <span className="cd-sec-num" aria-hidden="true">
+        {n}
+      </span>
+      <h2 className="cd-h2">{children}</h2>
+      {small && <small className="cd-sec-small">{small}</small>}
+    </div>
+  );
+}
+
+// --- 1. Portada (cabecera de marca) ------------------------------------
 
 function Portada({ vm }: { vm: ClientDocVM }) {
   return (
-    <section className="cd-section cd-portada">
-      <h1 className="cd-titular">{vm.titular}</h1>
-      <p className="cd-portada-meta">
-        Preparado para {vm.cliente} · {formatFecha(vm.sentAt)}
-      </p>
-      <p className="cd-portada-nota">
-        Este documento se explica solo: fue preparado para poder decidirse sin
-        una reunión adicional.
-      </p>
+    <section className="cd-hero">
+      <span className="cd-orbita o1" aria-hidden="true" />
+      <span className="cd-orbita o2" aria-hidden="true" />
+      <div className="cd-hero-in">
+        <div className="cd-wordmark">
+          <span className="dot" aria-hidden="true" />
+          Ropofy
+        </div>
+        <div className="cd-eyebrow">Arquitectura comercial</div>
+        <h1 className="cd-titular">{vm.titular}</h1>
+        <p className="cd-hero-nota">
+          Este documento se explica solo: fue preparado para poder decidirse sin
+          una reunión adicional.
+        </p>
+        <div className="cd-hero-meta">
+          <span>
+            Preparado para <b>{vm.cliente}</b>
+          </span>
+          <span>{formatFecha(vm.sentAt)}</span>
+        </div>
+      </div>
     </section>
   );
 }
 
-// --- plan switcher ------------------------------------------------------
+// --- selector de plan flotante -----------------------------------------
 
-function PlanSwitcher({
+function FloatingPlanes({
   plan,
   onSelect,
   moneda,
@@ -174,20 +213,30 @@ function PlanSwitcher({
   moneda: string;
   precioDe: (p: Plan) => number;
 }) {
+  const [ver, setVer] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setVer(window.scrollY > 340);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   return (
-    <div className="cd-switcher">
-      {([1, 2, 3] as Plan[]).map((p) => (
-        <button
-          key={p}
-          type="button"
-          className={`cd-pill${p === plan ? " active" : ""}`}
-          aria-pressed={p === plan}
-          onClick={() => onSelect(p)}
-        >
-          <span>{PLAN_LABEL[p]}</span>
-          <small>{formatPrice(precioDe(p), moneda)}</small>
-        </button>
-      ))}
+    <div className={`cd-floating${ver ? " ver" : ""}`} aria-hidden={!ver}>
+      <div className="cd-floating-in">
+        <span className="cd-floating-lbl">Plan</span>
+        {([1, 2, 3] as Plan[]).map((p) => (
+          <button
+            key={p}
+            type="button"
+            className={`cd-floating-btn${p === plan ? " activo" : ""}`}
+            aria-pressed={p === plan}
+            onClick={() => onSelect(p)}
+          >
+            {PLAN_LABEL[p]}
+            <small>{formatPrice(precioDe(p), moneda)}</small>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -197,7 +246,7 @@ function PlanSwitcher({
 function Entendimos({ vm }: { vm: ClientDocVM }) {
   return (
     <section className="cd-section">
-      <h2 className="cd-h2">Lo que entendimos de su negocio</h2>
+      <SecHead n={1}>Lo que entendimos de su negocio</SecHead>
       <p className="cd-intro">
         Si algo aquí no es exacto, corregirlo cambia la propuesta — por eso va
         primero.
@@ -246,7 +295,7 @@ function AsIsColumn({
 function SistemaHoy({ vm }: { vm: ClientDocVM }) {
   return (
     <section className="cd-section">
-      <h2 className="cd-h2">Su sistema comercial hoy</h2>
+      <SecHead n={2}>Su sistema comercial hoy</SecHead>
       <div className="cd-asis">
         <AsIsColumn titulo="Por dónde llegan" items={vm.asIs.de_donde_llegan} />
         <div className="cd-arrow" aria-hidden="true">→</div>
@@ -295,7 +344,9 @@ function FugaCard({ f, dominante }: { f: FugaVM; dominante?: boolean }) {
 function Fugas({ vm }: { vm: ClientDocVM }) {
   return (
     <section className="cd-section">
-      <h2 className="cd-h2">Las fugas</h2>
+      <SecHead n={3} small="Dónde se está yendo el dinero hoy">
+        Las fugas
+      </SecHead>
       {vm.fugaDominante && <FugaCard f={vm.fugaDominante} dominante />}
       <div className="cd-fugas-grid">
         {vm.fugasResto.map((f, i) => (
@@ -308,54 +359,103 @@ function Fugas({ vm }: { vm: ClientDocVM }) {
 
 // --- 5. El diagnóstico --------------------------------------------------
 
-function MaturityBar({
+const NIVEL_MAX = 4;
+
+// Grade scale (mirror of lib/grade.ts thresholds), for the score strip.
+const ESCALA_NOTA: Array<{ g: string; r: string }> = [
+  { g: "A", r: "85+" },
+  { g: "B", r: "70" },
+  { g: "C", r: "55" },
+  { g: "D", r: "40" },
+  { g: "E", r: "25" },
+  { g: "F", r: "0" },
+];
+
+function MadurezRow({
+  nombre,
   hoy,
   meta,
   sector,
+  top,
 }: {
+  nombre: string;
   hoy: number;
   meta?: number;
   sector?: number;
+  top?: boolean;
 }) {
+  const hoyPct = (hoy / NIVEL_MAX) * 100;
+  const metaVal = meta != null ? Math.max(meta, hoy) : hoy;
+  const ganaPct = ((metaVal - hoy) / NIVEL_MAX) * 100;
   return (
-    <div className="cd-bar-wrap">
-      <div className="cd-bar">
-        {[0, 1, 2, 3].map((seg) => {
-          const cls =
-            seg < hoy ? "seg hoy" : meta != null && seg < meta ? "seg meta" : "seg";
-          return <span className={cls} key={seg} />;
-        })}
+    <div className={`cd-madurez-row${top ? " top" : ""}`}>
+      <div className="cd-madurez-nombre">{nombre}</div>
+      <div className="cd-salto-wrap">
+        <div className="cd-salto-bar">
+          <span className="cd-salto-hoy" style={{ width: `${hoyPct}%` }} />
+          {ganaPct > 0 && (
+            <span className="cd-salto-gana" style={{ width: `${ganaPct}%` }} />
+          )}
+        </div>
+        {typeof sector === "number" && (
+          <span
+            className="cd-salto-sector"
+            style={{ left: `${(sector / NIVEL_MAX) * 100}%` }}
+            title={`Promedio del sector: ${sector}`}
+          />
+        )}
       </div>
-      {typeof sector === "number" && (
-        <span
-          className="cd-bar-sector"
-          style={{ left: `${(sector / 4) * 100}%` }}
-          title={`Promedio del sector: ${sector}`}
-        />
-      )}
+      <div className="cd-salto-lbl">
+        {meta != null ? (
+          <>
+            Hoy {hoy} · <b>meta {metaVal}</b>
+          </>
+        ) : (
+          <>
+            Nivel <b>{hoy}</b>/{NIVEL_MAX}
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 function Diagnostico({ vm }: { vm: ClientDocVM }) {
   return (
-    <section className="cd-section cd-diagnostico">
-      <h2 className="cd-h2">El diagnóstico</h2>
-      <div className="cd-nota">
-        <div className="cd-nota-letra">{vm.nota.letra}</div>
-        <div className="cd-nota-puntos">{vm.nota.puntos}/100</div>
-      </div>
-      <div className="cd-madurez">
-        {vm.madurez.map((m, i) => (
-          <div className="cd-madurez-row" key={i}>
-            <div className="cd-madurez-nombre">{m.m}</div>
-            <MaturityBar hoy={m.hoy} sector={vm.benchmarkModulos?.[m.m]} />
+    <section className="cd-section">
+      <SecHead n={4} small="Dónde está su operación comercial hoy">
+        El diagnóstico
+      </SecHead>
+      <div className="cd-score-wrap">
+        <div className="cd-score">
+          <div className="cd-score-cap">Nota de madurez</div>
+          <div className="cd-score-letra">{vm.nota.letra}</div>
+          <div className="cd-score-pts">{vm.nota.puntos}/100</div>
+          <div className="cd-escala">
+            {ESCALA_NOTA.map((e) => (
+              <div key={e.g} className={e.g === vm.nota.letra ? "act" : ""}>
+                <div className="g">{e.g}</div>
+                <div className="r">{e.r}</div>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+        <div className="cd-madurez">
+          {vm.madurez.map((m, i) => (
+            <MadurezRow
+              key={i}
+              nombre={m.m}
+              hoy={m.hoy}
+              sector={vm.benchmarkModulos?.[m.m]}
+            />
+          ))}
+          {vm.benchmarkModulos && (
+            <p className="cd-bar-legend">
+              La línea marca el promedio del sector.
+            </p>
+          )}
+        </div>
       </div>
-      {vm.benchmarkModulos && (
-        <p className="cd-bar-legend">La línea marca el promedio del sector.</p>
-      )}
     </section>
   );
 }
@@ -365,6 +465,7 @@ function Diagnostico({ vm }: { vm: ClientDocVM }) {
 function ClaveDeLectura() {
   return (
     <section className="cd-section">
+      <SecHead n={5}>Cómo leer su plano</SecHead>
       <div className="cd-clave">
         <h3 className="cd-clave-title">Cómo leer el plano que sigue</h3>
         <p>
@@ -432,22 +533,26 @@ function AINode({ entries, plan }: { entries: ClientComp[]; plan: Plan }) {
 function PlanoCompleto({ vm, plan }: { vm: ClientDocVM; plan: Plan }) {
   return (
     <section className="cd-section">
-      <h2 className="cd-h2">El plano completo</h2>
-      <div className="cd-bands">
-        {vm.bands.map((band) => (
-          <div className="cd-band" key={band.name}>
-            <div className="cd-band-head">
-              <span className="cd-band-num">{band.numero}</span>
-              <span className="cd-band-name">{band.name}</span>
+      <SecHead n={6} small="Todo lo que se pone a trabajar por usted">
+        El plano completo
+      </SecHead>
+      <div className="cd-lienzo">
+        <div className="cd-bands">
+          {vm.bands.map((band) => (
+            <div className="cd-band" key={band.name}>
+              <div className="cd-band-head">
+                <span className="cd-band-num">{band.numero}</span>
+                <span className="cd-band-name">{band.name}</span>
+              </div>
+              <div className="cd-band-grid">
+                {band.regular.map((c) => (
+                  <CompCard key={c.key} comp={c} plan={plan} />
+                ))}
+              </div>
+              {band.ai.length > 0 && <AINode entries={band.ai} plan={plan} />}
             </div>
-            <div className="cd-band-grid">
-              {band.regular.map((c) => (
-                <CompCard key={c.key} comp={c} plan={plan} />
-              ))}
-            </div>
-            {band.ai.length > 0 && <AINode entries={band.ai} plan={plan} />}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       <div className="cd-rail">
@@ -504,7 +609,9 @@ function LosTresPlanes({
 }) {
   return (
     <section className="cd-section">
-      <h2 className="cd-h2">Los tres planes</h2>
+      <SecHead n={7} small="Elija hasta dónde llevar el sistema">
+        Los tres planes
+      </SecHead>
       <div className="cd-planes">
         {([1, 2, 3] as Plan[]).map((p) => (
           <button
@@ -532,30 +639,36 @@ function LosTresPlanes({
 function ADondeLlega({ vm, plan }: { vm: ClientDocVM; plan: Plan }) {
   const key = String(plan) as PlanKey;
   const proyectada = gradeForPlan(vm.madurez, plan);
+  // Highlight the module that gains the most with this plan (lime bar).
+  let maxGana = 0;
+  for (const m of vm.madurez) maxGana = Math.max(maxGana, m.p[key] - m.hoy);
   return (
     <section className="cd-section">
       <div className="cd-adonde-head">
-        <h2 className="cd-h2">A dónde llega con cada plan</h2>
+        <SecHead n={8}>A dónde llega con cada plan</SecHead>
         <div className="cd-grade-arrow">
           {vm.nota.letra} <span aria-hidden="true">→</span>{" "}
           <strong>{proyectada.letra}</strong>
         </div>
       </div>
       <div className="cd-madurez">
-        {vm.madurez.map((m, i) => (
-          <div className="cd-madurez-row" key={i}>
-            <div className="cd-madurez-nombre">{m.m}</div>
-            <MaturityBar
+        {vm.madurez.map((m, i) => {
+          const gana = m.p[key] - m.hoy;
+          return (
+            <MadurezRow
+              key={i}
+              nombre={m.m}
               hoy={m.hoy}
               meta={m.p[key]}
               sector={vm.benchmarkModulos?.[m.m]}
+              top={maxGana > 0 && gana === maxGana}
             />
-          </div>
-        ))}
+          );
+        })}
+        {vm.benchmarkModulos && (
+          <p className="cd-bar-legend">La línea marca el promedio del sector.</p>
+        )}
       </div>
-      {vm.benchmarkModulos && (
-        <p className="cd-bar-legend">La línea marca el promedio del sector.</p>
-      )}
     </section>
   );
 }
@@ -566,7 +679,7 @@ function Condiciones({ vm }: { vm: ClientDocVM }) {
   if (vm.advertencias.length === 0) return null;
   return (
     <section className="cd-section">
-      <h2 className="cd-h2">Condiciones de arranque</h2>
+      <SecHead n={9}>Condiciones de arranque</SecHead>
       <p className="cd-intro">{introAdvertencias(vm.advertencias.length)}</p>
       <ul className="cd-condiciones">
         {vm.advertencias.map((a, i) => (
@@ -639,7 +752,7 @@ function Inversion({
 
   return (
     <section className="cd-section cd-inversion">
-      <h2 className="cd-h2">Inversión y aceptación</h2>
+      <SecHead n={10}>Inversión y aceptación</SecHead>
 
       <div className="cd-price-block">
         {bloque.tieneDescuento ? (
