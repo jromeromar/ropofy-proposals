@@ -573,51 +573,64 @@
   background: #98a0b3;
   color: #fff;
 }
-.pv-incluir {
-  display: inline-block;
-  margin-top: 8px;
+/* The lock badge is the trigger: click it to grant a courtesy. */
+.pv-lock-btn {
   font-family: inherit;
-  font-size: 10.5px;
-  font-weight: 800;
-  color: var(--color-ink);
-  background: var(--color-accent);
-  border: none;
-  border-radius: 999px;
-  padding: 4px 10px;
   cursor: pointer;
-  white-space: nowrap;
 }
-.pv-incluir:hover {
-  filter: brightness(0.96);
-}
-.pv-incluir:disabled {
-  opacity: 0.6;
+.pv-lock-btn:disabled {
   cursor: default;
 }
-.pv-incluir-mini {
+/* Courtesy: not greyed; lime accent + gift badge. */
+.pv-card.cortesia {
+  border-color: var(--color-accent);
+  background: #fbffe6;
+}
+.pv-cortesia-badge {
+  position: absolute;
+  top: -8px;
+  right: -6px;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 900;
+  letter-spacing: 0.02em;
   color: var(--color-ink);
   background: var(--color-accent);
   border: none;
   border-radius: 999px;
-  width: 18px;
-  height: 18px;
-  line-height: 1;
-  margin-left: 4px;
+  padding: 2px 8px;
   cursor: pointer;
-  vertical-align: middle;
 }
-.pv-incluir-mini:disabled {
-  opacity: 0.6;
+.pv-cortesia-badge:disabled {
   cursor: default;
 }
-@media print {
-  .pv-incluir,
-  .pv-incluir-mini {
-    display: none;
-  }
+.pv-ai-lock-btn {
+  font-family: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.pv-ai-lock-btn:disabled {
+  cursor: default;
+}
+.pv-ai-chip.cortesia {
+  background: #fbffe6;
+  color: var(--color-ink);
+  text-decoration: none;
+  opacity: 1;
+  border: 1px solid var(--color-accent);
+}
+.pv-ai-cortesia {
+  font-family: inherit;
+  background: none;
+  border: none;
+  padding: 0 0 0 2px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.pv-ai-cortesia:disabled {
+  cursor: default;
 }
 
 /* Nodo IA */

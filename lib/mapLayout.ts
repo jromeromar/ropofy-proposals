@@ -54,9 +54,45 @@ export const PLAN_LABEL: Record<1 | 2 | 3, string> = {
   3: "Inteligente",
 };
 
-/** A component is locked when its plan sits ABOVE the selected plan. */
-export function isLocked(compPlan: PlanNombre, selectedPlan: number): boolean {
-  return PLAN_RANK[compPlan] > selectedPlan;
+/**
+ * Effective unlock rank: a courtesy grant lowers the tier at which a feature
+ * unlocks (to the lower of its natural plan and the courtesy plan).
+ */
+export function planUnlockRank(
+  compPlan: PlanNombre,
+  cortesiaPlan?: PlanNombre | null,
+): number {
+  const r = PLAN_RANK[compPlan];
+  return cortesiaPlan ? Math.min(r, PLAN_RANK[cortesiaPlan]) : r;
+}
+
+/**
+ * A component is locked when its EFFECTIVE unlock rank sits above the selected
+ * plan (a courtesy grant can unlock it below its natural tier).
+ */
+export function isLocked(
+  compPlan: PlanNombre,
+  selectedPlan: number,
+  cortesiaPlan?: PlanNombre | null,
+): boolean {
+  return planUnlockRank(compPlan, cortesiaPlan) > selectedPlan;
+}
+
+/**
+ * True when a feature is shown ONLY thanks to a courtesy: its natural tier is
+ * above the selected plan, but the courtesy grant unlocks it here — so it
+ * renders unlocked with a "cortesía" gift.
+ */
+export function esCortesia(
+  compPlan: PlanNombre,
+  selectedPlan: number,
+  cortesiaPlan?: PlanNombre | null,
+): boolean {
+  return (
+    !!cortesiaPlan &&
+    PLAN_RANK[compPlan] > selectedPlan &&
+    PLAN_RANK[cortesiaPlan] <= selectedPlan
+  );
 }
 
 /**

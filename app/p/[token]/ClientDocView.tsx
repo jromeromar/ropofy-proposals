@@ -13,7 +13,7 @@ import { formatPrice } from "@/lib/rules";
 import { gradeForPlan } from "@/lib/grade";
 import { bloquePrecioEfectivo } from "@/lib/condition";
 import { formatVigencia } from "@/lib/clientDocument";
-import { isLocked, PLAN_RANK, PLAN_LABEL } from "@/lib/mapLayout";
+import { isLocked, esCortesia, PLAN_RANK, PLAN_LABEL } from "@/lib/mapLayout";
 import type { ClientDocVM, ClientComp, FugaVM } from "@/lib/clientDocVM";
 import type { Acceptance, Visibilidad, AsIsFila } from "@/lib/types";
 import { aceptarPropuesta } from "./actions";
@@ -522,9 +522,12 @@ function ClaveDeLectura() {
 // --- 7. El plano completo ----------------------------------------------
 
 function CompCard({ comp, plan }: { comp: ClientComp; plan: Plan }) {
-  const locked = isLocked(comp.plan, plan);
+  const locked = isLocked(comp.plan, plan, comp.cortesiaPlan);
+  const cortesia = esCortesia(comp.plan, plan, comp.cortesiaPlan);
   return (
-    <div className={`cd-card${locked ? " locked" : ""}`}>
+    <div
+      className={`cd-card${locked ? " locked" : ""}${cortesia ? " cortesia" : ""}`}
+    >
       <div className="cd-card-nombre">{comp.nombre}</div>
       {comp.beneficio && <div className="cd-card-beneficio">{comp.beneficio}</div>}
       <div className="cd-card-chips">
@@ -543,22 +546,35 @@ function CompCard({ comp, plan }: { comp: ClientComp; plan: Plan }) {
           </span>
         ))}
       </div>
-      {locked && <div className="cd-lock">🔒 {PLAN_LABEL[PLAN_RANK[comp.plan]]}</div>}
+      {cortesia ? (
+        <div className="cd-cortesia">
+          🎁 Cortesía · normalmente en {PLAN_LABEL[PLAN_RANK[comp.plan]]}
+        </div>
+      ) : (
+        locked && (
+          <div className="cd-lock">🔒 {PLAN_LABEL[PLAN_RANK[comp.plan]]}</div>
+        )
+      )}
     </div>
   );
 }
 
 function AINode({ entries, plan }: { entries: ClientComp[]; plan: Plan }) {
-  const allLocked = entries.every((e) => isLocked(e.plan, plan));
+  const allLocked = entries.every((e) => isLocked(e.plan, plan, e.cortesiaPlan));
   return (
     <div className={`cd-ai-node${allLocked ? " locked" : ""}`}>
       <div className="cd-ai-title">Su asistente de IA — uno solo, con habilidades</div>
       <div className="cd-ai-chips">
         {entries.map((e) => {
-          const locked = isLocked(e.plan, plan);
+          const locked = isLocked(e.plan, plan, e.cortesiaPlan);
+          const cortesia = esCortesia(e.plan, plan, e.cortesiaPlan);
           return (
-            <span className={`cd-ai-chip${locked ? " locked" : ""}`} key={e.key}>
+            <span
+              className={`cd-ai-chip${locked ? " locked" : ""}${cortesia ? " cortesia" : ""}`}
+              key={e.key}
+            >
               {e.nombre}
+              {cortesia && <em> 🎁 cortesía</em>}
               {locked && <em> 🔒 {PLAN_LABEL[PLAN_RANK[e.plan]]}</em>}
             </span>
           );

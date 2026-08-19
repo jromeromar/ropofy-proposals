@@ -134,6 +134,35 @@ describe("editar inline (presentación) — ediciones por índice posicional", (
     expect(after?.version).toBe("v1");
   });
 
+  it("otorga y quita una cortesía por índice (conserva el plan natural)", async () => {
+    const stored = await storage.saveProposal(loadFixture());
+    const keys = Object.keys(stored.data.componentes);
+    const idx = keys.findIndex(
+      (k) => stored.data.componentes[k].plan === "inteligente",
+    );
+    const planNatural = stored.data.componentes[keys[idx]].plan;
+
+    // Grant courtesy into "avanzado".
+    const grant = await guardarInline({
+      id: stored.id,
+      ediciones: [{ campo: "compCortesia", idx, cortesiaPlan: "avanzado" }],
+    });
+    expect(grant.ok).toBe(true);
+    let after = await storage.getProposal(stored.id);
+    expect(after?.data.componentes[keys[idx]].cortesiaPlan).toBe("avanzado");
+    // Natural plan is preserved.
+    expect(after?.data.componentes[keys[idx]].plan).toBe(planNatural);
+
+    // Remove it.
+    const remove = await guardarInline({
+      id: stored.id,
+      ediciones: [{ campo: "compCortesia", idx, cortesiaPlan: null }],
+    });
+    expect(remove.ok).toBe(true);
+    after = await storage.getProposal(stored.id);
+    expect(after?.data.componentes[keys[idx]].cortesiaPlan).toBeUndefined();
+  });
+
   it("edita una fuga por su índice y valida (contrato)", async () => {
     const stored = await storage.saveProposal(loadFixture());
     const idx = stored.data.fugas.findIndex((f) => f.dominante === true);
