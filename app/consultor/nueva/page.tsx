@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { validateProposal } from "@/lib/validateProposal";
 import { formatPrice } from "@/lib/rules";
@@ -9,6 +9,16 @@ import type { Proposal, StoredProposal, PlanNombre } from "@/lib/types";
 interface Summary {
   stored: StoredProposal;
   proposal: Proposal;
+  asVersion: boolean;
+}
+
+/** Slim shape returned by GET /api/proposals for the existing-client selector. */
+interface ClienteOpcion {
+  id: string;
+  cliente: string;
+  version: string;
+  createdAt: string;
+  sentCount: number;
 }
 
 const PLAN_LABELS: Record<PlanNombre, string> = {
@@ -34,6 +44,23 @@ export default function NuevaPropuesta() {
   const [errors, setErrors] = useState<string[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
+  const [existentes, setExistentes] = useState<ClienteOpcion[]>([]);
+  const [asociarA, setAsociarA] = useState("");
+
+  useEffect(() => {
+    let vivo = true;
+    fetch("/api/proposals")
+      .then((r) => (r.ok ? r.json() : { proposals: [] }))
+      .then((p) => {
+        if (vivo && Array.isArray(p.proposals)) setExistentes(p.proposals);
+      })
+      .catch(() => {
+        /* the selector is optional; ignore load errors */
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -64,10 +91,14 @@ export default function NuevaPropuesta() {
       return;
     }
 
-    // 3) Persist via the API (which re-validates server-side).
+    // 3) Persist via the API (which re-validates server-side). When a client
+    //    is selected, store it as a NEW VERSION of that existing proposal.
     setLoading(true);
     try {
-      const res = await fetch("/api/proposals", {
+      const url = asociarA
+        ? `/api/proposals?version_of=${encodeURIComponent(asociarA)}`
+        : "/api/proposals";
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parsed),
@@ -82,6 +113,7 @@ export default function NuevaPropuesta() {
       setSummary({
         stored: payload.proposal as StoredProposal,
         proposal: parsed as Proposal,
+        asVersion: Boolean(payload.asVersion),
       });
     } catch {
       setErrors(["Error de red al guardar la propuesta. Intenta de nuevo."]);
@@ -106,6 +138,28 @@ export default function NuevaPropuesta() {
 
       {!summary && (
         <div className="stack">
+          <div>
+            <label htmlFor="asociar">Cliente</label>
+            <select
+              id="asociar"
+              value={asociarA}
+              onChange={(e) => setAsociarA(e.target.value)}
+            >
+              <option value="">Cliente nuevo (crear propuesta)</option>
+              {existentes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.cliente} · {c.version}
+                  {c.sentCount > 0 ? ` · ${c.sentCount} enviada(s)` : ""}
+                </option>
+              ))}
+            </select>
+            <p className="muted" style={{ marginTop: 6 }}>
+              {asociarA
+                ? "Se cargará como una versión nueva de este cliente; su historial de envíos se conserva."
+                : "Deja «Cliente nuevo» para crear una propuesta desde cero, o elige un cliente existente para asociarla como versión nueva."}
+            </p>
+          </div>
+
           <div>
             <label htmlFor="json">Contenido de la propuesta (JSON)</label>
             <textarea
@@ -164,11 +218,19 @@ function SummaryCard({ summary }: { summary: Summary }) {
     <div className="stack">
       <div className="card">
         <div className="header-row">
-          <h2 style={{ margin: 0 }}>Propuesta cargada</h2>
+          <h2 style={{ margin: 0 }}>
+            {summary.asVersion ? "Versión nueva cargada" : "Propuesta cargada"}
+          </h2>
           <span className="badge">
             {stored.version} · {stored.estado}
           </span>
         </div>
+        {summary.asVersion && (
+          <p className="muted" style={{ marginTop: 0 }}>
+            Asociada a un cliente existente como {stored.version}. Los envíos
+            anteriores siguen vivos en sus enlaces.
+          </p>
+        )}
 
         <div className="summary-grid">
           <div className="summary-cell">
