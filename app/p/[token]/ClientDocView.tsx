@@ -15,7 +15,7 @@ import { bloquePrecioEfectivo } from "@/lib/condition";
 import { formatVigencia } from "@/lib/clientDocument";
 import { isLocked, PLAN_RANK, PLAN_LABEL } from "@/lib/mapLayout";
 import type { ClientDocVM, ClientComp, FugaVM } from "@/lib/clientDocVM";
-import type { Acceptance, Visibilidad } from "@/lib/types";
+import type { Acceptance, Visibilidad, AsIsFila } from "@/lib/types";
 import { aceptarPropuesta } from "./actions";
 import { useTelemetria } from "./useTelemetria";
 
@@ -275,7 +275,7 @@ function AsIsColumn({
   items,
 }: {
   titulo: string;
-  items: Array<[string, string]>;
+  items: AsIsFila[];
 }) {
   return (
     <div className="cd-asis-col">

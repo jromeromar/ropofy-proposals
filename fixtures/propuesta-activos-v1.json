@@ -29,7 +29,8 @@
    ],
    [
     "Seis portales inmobiliarios",
-    "306 leads/mes en promedio; se extraen a mano"
+    "306 leads/mes en promedio; se extraen a mano",
+    { "cifra": "306", "unidad": "leads/mes" }
    ],
    [
     "Calle",
@@ -43,7 +44,8 @@
    ],
    [
     "10 personas atendiendo",
-    "20–30 conversaciones diarias solo en arriendos"
+    "hasta 30 conversaciones diarias en arriendos",
+    { "cifra": "30", "unidad": "conversaciones/día" }
    ],
    [
     "Ruteo manual al asesor",

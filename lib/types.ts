@@ -18,13 +18,32 @@ export type EtiquetaIntegracion =
   | "licencia_del_cliente"
   | "desarrollo_a_cotizar";
 
-/** A [label, note] pair used across the as_is section. */
+/** A [label, note] pair (used by no_aplican). */
 export type Par = [string, string];
 
+/**
+ * The headline figure of an as_is row, declared explicitly by the contract so
+ * the renderer never has to scrape digits out of the free-prose note. Optional:
+ * a row without a clear figure simply carries no cifra (and shows no stat).
+ */
+export interface AsIsCifra {
+  /** The number to highlight, verbatim from the note (e.g. "306", "95%"). */
+  cifra: string;
+  /** Unit that gives the figure meaning (e.g. "leads/mes"). */
+  unidad?: string;
+}
+
+/**
+ * An as_is row: [canal, nota] with an OPTIONAL third element carrying the
+ * headline figure. Indices 0 and 1 keep their meaning, so any consumer that
+ * only reads [canal, nota] keeps working.
+ */
+export type AsIsFila = [string, string] | [string, string, AsIsCifra];
+
 export interface AsIs {
-  de_donde_llegan: Par[];
-  por_donde_pasan: Par[];
-  donde_queda: Par[];
+  de_donde_llegan: AsIsFila[];
+  por_donde_pasan: AsIsFila[];
+  donde_queda: AsIsFila[];
 }
 
 export interface Fuga {

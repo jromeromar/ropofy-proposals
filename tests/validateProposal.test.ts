@@ -75,6 +75,27 @@ describe("validateProposal", () => {
     ).toBe(true);
   });
 
+  it("acepta una fila de as_is con el tercer elemento { cifra, unidad }", () => {
+    const p = clone(loadFixture());
+    p.as_is.de_donde_llegan[0] = [
+      "WhatsApp",
+      "el canal principal recibe 60 al día",
+      { cifra: "60", unidad: "conversaciones/día" },
+    ];
+    const result = validateProposal(p);
+    expect(result.errors).toEqual([]);
+    expect(result.ok).toBe(true);
+  });
+
+  it("rechaza un tercer elemento de as_is malformado (cifra no es texto)", () => {
+    const p = clone(loadFixture()) as Record<string, unknown>;
+    const asIs = (p as { as_is: { de_donde_llegan: unknown[] } }).as_is;
+    asIs.de_donde_llegan[0] = ["WhatsApp", "nota", { cifra: 60 }];
+    const result = validateProposal(p);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes("as_is"))).toBe(true);
+  });
+
   it("reporta todos los problemas a la vez, no fail-fast", () => {
     const p = clone(loadFixture()) as Record<string, unknown>;
     delete p.nota;
