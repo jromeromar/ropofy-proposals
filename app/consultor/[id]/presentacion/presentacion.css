@@ -999,6 +999,18 @@
   border-radius: 6px;
   padding: 2px 7px;
 }
+.pv-drawer-plan-sel {
+  width: auto;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  background: var(--color-primary-tinte);
+  border: 1.5px solid var(--color-primary-tinte2);
+  border-radius: 7px;
+  padding: 4px 6px;
+  cursor: pointer;
+}
 .pv-drawer-foot {
   display: flex;
   justify-content: flex-end;
