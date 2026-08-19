@@ -8,18 +8,26 @@
   /* Paleta */
   --color-bg: #ffffff;
   --color-primary: #485cc7; /* morado principal */
-  --color-primary-dark: #232a45; /* morado oscuro — titulares */
+  --color-primary-dark: #37479b; /* morado oscuro — titulares de sección */
+  --color-ink: #232a45; /* tinta — texto y titulares fuertes */
   --color-accent: #ccff33; /* lima — SOLO acentos pequeños */
   --color-text: #232a45;
-  --color-text-secondary: #6b7280; /* gris — texto secundario */
-  --color-warning: #f59e0b; /* ámbar — advertencias de terceros */
+  --color-text-secondary: #708287; /* gris — texto secundario */
+  --color-warning: #b45309; /* ámbar — advertencias de terceros */
+  --color-warning-bg: #fef6ea;
   --color-border: #e5e7eb;
   --color-surface: #ffffff;
   --color-surface-muted: #f9fafb;
 
+  /* Tintes de marca (documento del cliente) */
+  --color-primary-tinte: #edf0fb;
+  --color-primary-tinte2: #dce2f7;
+  --color-gris-claro: #e8eced;
+  --color-aten: #c7cdd8;
+
   /* Tipografía */
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
-    "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  --font-sans: "Nunito Sans", system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
 
   /* Ritmo */
   --space-1: 4px;
