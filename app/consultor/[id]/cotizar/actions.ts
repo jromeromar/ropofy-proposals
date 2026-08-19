@@ -97,7 +97,12 @@ export async function enviarPropuesta(input: EnviarInput): Promise<EnviarResult>
     aprobador: necesitaAprobacion ? aprobador : aprobador || null,
   });
 
-  const clientDocument = buildClientDocument(data, condicion, input.plan);
+  const clientDocument = buildClientDocument(
+    data,
+    condicion,
+    input.plan,
+    stored.marca ?? null,
+  );
 
   const sent = await storage.saveSentVersion(input.id, {
     plan: input.plan,

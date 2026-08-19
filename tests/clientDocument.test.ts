@@ -60,6 +60,38 @@ describe("buildClientDocument — claves prohibidas ausentes", () => {
   });
 });
 
+describe("marca (nombre comercial) en el documento del cliente", () => {
+  it("congela la marca en el snapshot y la expone en el VM", () => {
+    const data = loadFixture();
+    const condicion = construirCondicion(data, 2, {
+      descuentoPct: null,
+      vigencia: null,
+      autor: "Ana Consultora",
+      aprobador: null,
+    });
+    const doc = buildClientDocument(data, condicion, 2, "Gosen Casa de Comidas");
+    expect(doc.marca).toBe("Gosen Casa de Comidas");
+    const vm = toClientDocVM(doc, "2026-08-14T15:00:00.000Z");
+    expect(vm.marca).toBe("Gosen Casa de Comidas");
+    expect(vm.cliente).toBe(data.cliente);
+  });
+
+  it("sin marca, el VM la deja en null", () => {
+    const data = loadFixture();
+    const condicion = construirCondicion(data, 2, {
+      descuentoPct: null,
+      vigencia: null,
+      autor: "Ana Consultora",
+      aprobador: null,
+    });
+    const vm = toClientDocVM(
+      buildClientDocument(data, condicion, 2),
+      "2026-08-14T15:00:00.000Z",
+    );
+    expect(vm.marca).toBeNull();
+  });
+});
+
 describe("as_is stats — cifra explícita, nunca escarbada", () => {
   it("toma la cifra declarada y su unidad como etiqueta", () => {
     const { doc } = buildDoc(15);

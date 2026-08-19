@@ -31,5 +31,11 @@ export default async function PresentacionPage({
     );
   }
 
-  return <PresentacionView id={id} vm={toPresentacionVM(stored.data)} />;
+  return (
+    <PresentacionView
+      id={id}
+      vm={toPresentacionVM(stored.data)}
+      marca={stored.marca ?? null}
+    />
+  );
 }

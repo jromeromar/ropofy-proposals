@@ -134,6 +134,9 @@ label {
 
 textarea,
 select,
+input[type="text"],
+input[type="email"],
+input[type="number"],
 input[type="file"] {
   width: 100%;
   font-family: var(--font-sans);
@@ -282,6 +285,27 @@ input:focus {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+.marca-view,
+.marca-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.marca-edit input[type="text"] {
+  width: auto;
+  min-width: 220px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.marca-error {
+  color: #b91c1c;
+  font-size: 12px;
 }
 .version-actions {
   display: flex;

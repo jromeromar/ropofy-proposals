@@ -41,11 +41,13 @@ const INTEGRACION_BADGE: Record<string, { label: string; cls: string }> = {
 interface Props {
   id: string;
   vm: PresentacionVM;
+  /** Brand / trade name (or null); shown alongside the legal name. */
+  marca?: string | null;
   /** Test/override hook; defaults to planRecomendado. */
   initialPlan?: Plan;
 }
 
-export default function PresentacionView({ id, vm, initialPlan }: Props) {
+export default function PresentacionView({ id, vm, marca, initialPlan }: Props) {
   const [plan, setPlan] = useState<Plan>(initialPlan ?? vm.planRecomendado);
   const [showFloating, setShowFloating] = useState(false);
   const switcherRef = useRef<HTMLDivElement | null>(null);
@@ -67,7 +69,7 @@ export default function PresentacionView({ id, vm, initialPlan }: Props) {
 
   return (
     <div className="pv">
-      <Portada cliente={vm.cliente} titular={vm.titular} />
+      <Portada cliente={vm.cliente} marca={marca ?? null} titular={vm.titular} />
 
       <div ref={switcherRef}>
         <PlanSwitcher plan={plan} onSelect={setPlan} precioDe={precioDe} sticky />
@@ -187,7 +189,15 @@ function FloatingSwitcher({
 
 // --- 1. Portada ---------------------------------------------------------
 
-function Portada({ cliente, titular }: { cliente: string; titular: string }) {
+function Portada({
+  cliente,
+  marca,
+  titular,
+}: {
+  cliente: string;
+  marca: string | null;
+  titular: string;
+}) {
   const fecha = new Intl.DateTimeFormat("es-CO", {
     year: "numeric",
     month: "long",
@@ -206,7 +216,7 @@ function Portada({ cliente, titular }: { cliente: string; titular: string }) {
         <h1 className="pv-titular">{titular}</h1>
         <div className="pv-hero-meta">
           <span>
-            <b>{cliente}</b>
+            <b>{marca ? `${marca} (${cliente})` : cliente}</b>
           </span>
           <span>{fecha}</span>
         </div>

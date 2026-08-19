@@ -158,6 +158,8 @@ export interface AppliedCondition {
  */
 export interface ClientDocument {
   cliente: string;
+  /** Brand / trade name, frozen into the snapshot at send time (or null). */
+  marca?: string | null;
   condicion_aplicada: {
     plan_seleccionado: 1 | 2 | 3;
     descuento_pct: number | null;
@@ -221,7 +223,14 @@ export interface SentVersion {
 /** A proposal as persisted by the storage layer. */
 export interface StoredProposal {
   id: string;
+  /** Legal name (razón social), from the proposal JSON. */
   cliente: string;
+  /**
+   * Brand / trade name (marca), editable by the consultant. The pipeline JSON
+   * only carries the legal name in `cliente`; the brand is captured/corrected
+   * here. null/absent = no brand set.
+   */
+  marca?: string | null;
   version: string;
   /** ISO-8601 timestamp of when it was loaded. */
   createdAt: string;
