@@ -90,6 +90,30 @@ describe("editar inline (presentación) — ediciones por índice posicional", (
     expect(after?.version).toBe("v1");
   });
 
+  it("incluye/excluye una funcionalidad por índice (drawer de la presentación)", async () => {
+    const stored = await storage.saveProposal(loadFixture());
+    const keys = Object.keys(stored.data.componentes);
+
+    const off = await guardarInline({
+      id: stored.id,
+      ediciones: [{ campo: "compIncluido", idx: 0, incluido: false }],
+    });
+    expect(off.ok).toBe(true);
+    let after = await storage.getProposal(stored.id);
+    expect(after?.data.componentes[keys[0]].incluido).toBe(false);
+    // Still present in the data (recoverable), version unchanged.
+    expect(Object.keys(after!.data.componentes).length).toBe(keys.length);
+    expect(after?.version).toBe("v1");
+
+    const on = await guardarInline({
+      id: stored.id,
+      ediciones: [{ campo: "compIncluido", idx: 0, incluido: true }],
+    });
+    expect(on.ok).toBe(true);
+    after = await storage.getProposal(stored.id);
+    expect(after?.data.componentes[keys[0]].incluido).toBe(true);
+  });
+
   it("edita una fuga por su índice y valida (contrato)", async () => {
     const stored = await storage.saveProposal(loadFixture());
     const idx = stored.data.fugas.findIndex((f) => f.dominante === true);

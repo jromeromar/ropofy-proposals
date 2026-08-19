@@ -9,7 +9,12 @@
  * into the client bundle or the hydration payload because it never leaves here.
  */
 
-import { buildLayout, benchmarkPorModulo, type BandName } from "./mapLayout";
+import {
+  buildLayout,
+  benchmarkPorModulo,
+  bandFromJourney,
+  type BandName,
+} from "./mapLayout";
 import type {
   Proposal,
   AsIs,
@@ -18,6 +23,17 @@ import type {
   PlanNombre,
   EtiquetaIntegracion,
 } from "./types";
+
+/** One row of the feature inventory (every component, included or removed). */
+export interface InventarioItem {
+  /** Positional index into `componentes` (same idx used for inline edits). */
+  idx: number;
+  nombre: string;
+  plan: PlanNombre;
+  banda: BandName;
+  /** Whether it is currently shown in the plano. */
+  incluido: boolean;
+}
 
 export interface CompVM {
   /** Synthesised, id-free React key (never the internal component id). */
@@ -68,6 +84,8 @@ export interface PresentacionVM {
   integraciones: Array<[string, string, EtiquetaIntegracion]>;
   noAplican: Array<[string, string]>;
   madurez: MadurezVM[];
+  /** Every feature (included AND removed), for the inventory drawer. */
+  inventario: InventarioItem[];
   planRecomendado: 1 | 2 | 3;
   moneda: string;
   precioPorPlan: { "1": number; "2": number; "3": number };
@@ -124,6 +142,13 @@ export function toPresentacionVM(proposal: Proposal): PresentacionVM {
     integraciones: proposal.integraciones,
     noAplican: proposal.no_aplican,
     madurez: proposal.madurez.map((m) => ({ m: m.m, hoy: m.hoy, p: m.p })),
+    inventario: Object.values(proposal.componentes).map((c, idx) => ({
+      idx,
+      nombre: c.nombre_cliente,
+      plan: c.plan,
+      banda: bandFromJourney(c.journey),
+      incluido: c.incluido !== false,
+    })),
     planRecomendado: proposal.plan_recomendado.plan,
     moneda: proposal.condicion_comercial.moneda,
     precioPorPlan: proposal.condicion_comercial.precio_por_plan,

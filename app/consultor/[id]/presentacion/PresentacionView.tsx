@@ -22,12 +22,13 @@ import {
 import { formatPrice } from "@/lib/rules";
 import { guardarInline, type EdicionInline } from "./actions";
 import { gradeForPlan } from "@/lib/grade";
-import { isLocked, PLAN_RANK, PLAN_LABEL } from "@/lib/mapLayout";
+import { isLocked, PLAN_RANK, PLAN_LABEL, BAND_ORDER } from "@/lib/mapLayout";
 import type {
   PresentacionVM,
   BandVM,
   CompVM,
   MadurezVM,
+  InventarioItem,
 } from "@/lib/presentacionVM";
 import type { AsIs } from "@/lib/types";
 
@@ -110,6 +111,34 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Feature inventory drawer state (pending include/exclude toggles by idx).
+  const [invOpen, setInvOpen] = useState(false);
+  const [invPend, setInvPend] = useState<Record<number, boolean>>({});
+  const [invSaving, setInvSaving] = useState(false);
+  const invIncluido = (idx: number, base: boolean) =>
+    idx in invPend ? invPend[idx] : base;
+
+  async function aplicarInventario() {
+    const ediciones: EdicionInline[] = vm.inventario
+      .filter((it) => invIncluido(it.idx, it.incluido) !== it.incluido)
+      .map((it) => ({
+        campo: "compIncluido" as const,
+        idx: it.idx,
+        incluido: invIncluido(it.idx, it.incluido),
+      }));
+    if (ediciones.length === 0) {
+      setInvOpen(false);
+      return;
+    }
+    setInvSaving(true);
+    try {
+      const res = await guardarInline({ id, ediciones });
+      if (res.ok && typeof window !== "undefined") window.location.reload();
+    } finally {
+      setInvSaving(false);
+    }
+  }
 
   const editCtx: EditCtx = {
     editing,
@@ -223,6 +252,16 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
             >
               Editar aquí
             </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                setInvPend({});
+                setInvOpen(true);
+              }}
+            >
+              Funcionalidades
+            </button>
             <a
               href={`/consultor/${id}/editar`}
               className="btn btn-secondary btn-sm"
@@ -233,6 +272,16 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
         )}
       </div>
 
+      <InventarioDrawer
+        open={invOpen}
+        inventario={vm.inventario}
+        incluidoDe={invIncluido}
+        onToggle={(idx, v) => setInvPend((prev) => ({ ...prev, [idx]: v }))}
+        onAplicar={aplicarInventario}
+        onCerrar={() => setInvOpen(false)}
+        saving={invSaving}
+      />
+
       <Entendimos asIs={vm.asIs} />
       <Fugas vm={vm} />
       <LaNota vm={vm} />
@@ -242,6 +291,98 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
       <Cierre id={id} plan={plan} precio={precio} />
     </div>
     </EditContext.Provider>
+  );
+}
+
+// --- feature inventory drawer (Power BI style) --------------------------
+
+function InventarioDrawer({
+  open,
+  inventario,
+  incluidoDe,
+  onToggle,
+  onAplicar,
+  onCerrar,
+  saving,
+}: {
+  open: boolean;
+  inventario: InventarioItem[];
+  incluidoDe: (idx: number, base: boolean) => boolean;
+  onToggle: (idx: number, v: boolean) => void;
+  onAplicar: () => void;
+  onCerrar: () => void;
+  saving: boolean;
+}) {
+  const grupos = BAND_ORDER.map((name) => ({
+    name,
+    items: inventario.filter((it) => it.banda === name),
+  })).filter((g) => g.items.length > 0);
+  const total = inventario.length;
+  const seleccionadas = inventario.filter((it) =>
+    incluidoDe(it.idx, it.incluido),
+  ).length;
+
+  return (
+    <div className={`pv-drawer-wrap${open ? " open" : ""}`} aria-hidden={!open}>
+      <div className="pv-drawer-overlay" onClick={onCerrar} />
+      <aside className="pv-drawer" role="dialog" aria-label="Funcionalidades">
+        <div className="pv-drawer-head">
+          <div>
+            <div className="pv-drawer-title">Funcionalidades</div>
+            <div className="pv-drawer-sub">
+              {seleccionadas} de {total} en el plano
+            </div>
+          </div>
+          <button type="button" className="pv-drawer-x" onClick={onCerrar}>
+            ✕
+          </button>
+        </div>
+
+        <div className="pv-drawer-body">
+          {grupos.map((g) => (
+            <div key={g.name} className="pv-drawer-grupo">
+              <div className="pv-drawer-banda">{g.name}</div>
+              {g.items.map((it) => {
+                const on = incluidoDe(it.idx, it.incluido);
+                return (
+                  <label
+                    key={it.idx}
+                    className={`pv-drawer-row${on ? "" : " off"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={(e) => onToggle(it.idx, e.target.checked)}
+                    />
+                    <span className="pv-drawer-nombre">{it.nombre}</span>
+                    <span className="pv-drawer-plan">{PLAN_LABEL[PLAN_RANK[it.plan]]}</span>
+                  </label>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        <div className="pv-drawer-foot">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={onCerrar}
+            disabled={saving}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={onAplicar}
+            disabled={saving}
+          >
+            {saving ? "Aplicando…" : "Aplicar"}
+          </button>
+        </div>
+      </aside>
+    </div>
   );
 }
 
