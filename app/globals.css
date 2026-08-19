@@ -267,6 +267,12 @@ input:focus {
   border-radius: 999px;
   color: var(--color-primary);
 }
+.list-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .version-actions {
   display: flex;
   align-items: center;

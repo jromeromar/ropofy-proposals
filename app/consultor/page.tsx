@@ -63,9 +63,20 @@ export default async function ConsultorHome() {
                     <code>{p.id}</code> · cargada {formatFecha(p.createdAt)}
                   </div>
                 </div>
-                <Link href={`/consultor/${p.id}/cotizar`} className="btn btn-secondary">
-                  Preparar / enviar
-                </Link>
+                <div className="list-item-actions">
+                  <Link
+                    href={`/consultor/${p.id}/presentacion`}
+                    className="btn btn-secondary"
+                  >
+                    Ver presentación
+                  </Link>
+                  <Link
+                    href={`/consultor/${p.id}/cotizar`}
+                    className="btn btn-secondary"
+                  >
+                    Preparar / enviar
+                  </Link>
+                </div>
               </div>
 
               {p.sentVersions.length > 0 && (
