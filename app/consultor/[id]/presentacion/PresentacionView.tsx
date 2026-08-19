@@ -152,9 +152,18 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
       const inc = invIncluido(it.idx, it.incluido);
       if (inc !== it.incluido)
         ediciones.push({ campo: "compIncluido", idx: it.idx, incluido: inc });
-      const pl = invPlan(it.idx, it.plan);
-      if (pl !== it.plan)
-        ediciones.push({ campo: "compPlan", idx: it.idx, plan: pl });
+      // The plan selector is a courtesy: choosing a tier BELOW the natural plan
+      // gifts it there; choosing the natural tier (or above) removes the gift.
+      const base = it.cortesiaPlan ?? it.plan;
+      const chosen = invPlan(it.idx, base);
+      const desiredCortesia =
+        PLAN_RANK[chosen] < PLAN_RANK[it.plan] ? chosen : null;
+      if (desiredCortesia !== it.cortesiaPlan)
+        ediciones.push({
+          campo: "compCortesia",
+          idx: it.idx,
+          cortesiaPlan: desiredCortesia,
+        });
     }
     if (ediciones.length === 0) {
       setInvOpen(false);
@@ -406,7 +415,8 @@ function InventarioDrawer({
               <div className="pv-drawer-banda">{g.name}</div>
               {g.items.map((it) => {
                 const on = incluidoDe(it.idx, it.incluido);
-                const pl = planDe(it.idx, it.plan);
+                const pl = planDe(it.idx, it.cortesiaPlan ?? it.plan);
+                const esCortesia = PLAN_RANK[pl] < PLAN_RANK[it.plan];
                 return (
                   <div
                     key={it.idx}
@@ -418,11 +428,15 @@ function InventarioDrawer({
                       aria-label={`Incluir ${it.nombre}`}
                       onChange={(e) => onToggle(it.idx, e.target.checked)}
                     />
-                    <span className="pv-drawer-nombre">{it.nombre}</span>
+                    <span className="pv-drawer-nombre">
+                      {esCortesia && <span title="Cortesía">🎁 </span>}
+                      {it.nombre}
+                    </span>
                     <select
-                      className="pv-drawer-plan-sel"
+                      className={`pv-drawer-plan-sel${esCortesia ? " cortesia" : ""}`}
                       value={pl}
-                      aria-label={`Plan de ${it.nombre}`}
+                      aria-label={`Disponible desde el plan (${it.nombre})`}
+                      title="Disponible desde este plan — elegir uno inferior lo regala como cortesía"
                       onChange={(e) => onPlan(it.idx, e.target.value as PlanNombre)}
                     >
                       {PLAN_OPCIONES.map((o) => (

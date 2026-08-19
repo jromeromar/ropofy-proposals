@@ -29,7 +29,10 @@ export interface InventarioItem {
   /** Positional index into `componentes` (same idx used for inline edits). */
   idx: number;
   nombre: string;
+  /** Natural tier (from the pipeline). */
   plan: PlanNombre;
+  /** Courtesy grant tier, or null (a gift into a lower plan). */
+  cortesiaPlan: PlanNombre | null;
   banda: BandName;
   /** Whether it is currently shown in the plano. */
   incluido: boolean;
@@ -148,6 +151,7 @@ export function toPresentacionVM(proposal: Proposal): PresentacionVM {
       idx,
       nombre: c.nombre_cliente,
       plan: c.plan,
+      cortesiaPlan: c.cortesiaPlan ?? null,
       banda: bandFromJourney(c.journey),
       incluido: c.incluido !== false,
     })),

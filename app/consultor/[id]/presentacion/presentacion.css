@@ -1070,6 +1070,11 @@
   padding: 4px 6px;
   cursor: pointer;
 }
+.pv-drawer-plan-sel.cortesia {
+  background: #fbffe6;
+  border-color: var(--color-accent);
+  color: var(--color-ink);
+}
 .pv-drawer-foot {
   display: flex;
   justify-content: flex-end;
