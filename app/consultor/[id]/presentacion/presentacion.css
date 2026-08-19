@@ -1,58 +1,157 @@
 /* ==========================================================================
    Vista de presentación del consultor.
-   Baja densidad de texto: titulares, cifras grandes, chips.
-   Estilo editorial sobrio; mucho aire. Reactiva al plan seleccionado.
+   Baja densidad de texto: titulares, cifras grandes, chips — el consultor
+   habla, la pantalla acompaña. Misma línea visual de marca que el documento
+   del cliente (cabecera morada, secciones numeradas, caja de nota, lienzo).
+   Reactiva al plan seleccionado.
    ========================================================================== */
 
 .pv {
   max-width: 1040px;
   margin: 0 auto;
-  padding: 0 24px 96px;
+  padding: 0 24px 120px;
+  color: var(--color-ink);
 }
 
 .pv-section {
-  padding: 56px 0;
-  border-bottom: 1px solid var(--color-border);
-}
-.pv-section:last-child {
-  border-bottom: none;
+  margin-top: 60px;
 }
 
-.pv-h2 {
+/* --- cabeceras de sección numeradas ------------------------------------ */
+
+.pv-sec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.pv-sec-num {
+  flex: 0 0 auto;
+  align-self: center;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 900;
   font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  border-radius: 999px;
+  min-width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pv-h2 {
+  font-size: 25px;
+  font-weight: 800;
+  color: var(--color-primary-dark);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.pv-sec-small {
   color: var(--color-text-secondary);
-  font-weight: 700;
-  margin: 0 0 24px;
+  font-weight: 600;
+  font-size: 13.5px;
 }
 .pv-h3 {
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 800;
   color: var(--color-primary-dark);
   margin: 0 0 12px;
 }
 
-/* --- 1. Portada --------------------------------------------------------- */
+/* --- 1. Portada (cabecera de marca) ------------------------------------ */
 
-.pv-portada {
-  padding-top: 88px;
-  padding-bottom: 64px;
+.pv-hero {
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  overflow: hidden;
+  background: var(--color-primary);
+  color: #fff;
+}
+.pv-hero-in {
+  position: relative;
+  z-index: 1;
+  max-width: 992px;
+  margin: 0 auto;
+  padding: 40px 24px 56px;
+}
+.pv-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  margin-bottom: 28px;
+}
+.pv-wordmark .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  display: inline-block;
+}
+.pv-eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #c9d3f5;
+  font-weight: 800;
 }
 .pv-titular {
-  font-size: clamp(44px, 6vw, 56px);
+  font-size: clamp(36px, 5.4vw, 54px);
+  font-weight: 900;
   line-height: 1.08;
   letter-spacing: -0.02em;
-  margin: 0 0 20px;
-  color: var(--color-primary-dark);
-  max-width: 18ch;
+  color: #fff;
+  max-width: 20ch;
+  margin: 12px 0 0;
 }
-.pv-portada-meta {
-  font-size: 15px;
-  color: var(--color-text-secondary);
-  margin: 0;
+.pv-hero-meta {
+  margin-top: 22px;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #c9d3f5;
+}
+.pv-hero-meta b {
+  color: #fff;
+  font-weight: 800;
+}
+.pv-orbita {
+  position: absolute;
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.pv-orbita.o1 {
+  width: 560px;
+  height: 210px;
+  right: -130px;
+  top: -50px;
+  transform: rotate(-16deg);
+}
+.pv-orbita.o2 {
+  width: 320px;
+  height: 120px;
+  right: 70px;
+  bottom: -34px;
+  transform: rotate(-16deg);
+}
+.pv-orbita.o2::after {
+  content: "";
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  top: 8px;
+  left: 36px;
 }
 
-/* --- Plan switcher (sticky + floating) --------------------------------- */
+/* --- Plan switcher (sticky + flotante) --------------------------------- */
 
 .pv-switcher {
   display: flex;
@@ -62,9 +161,10 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--color-bg);
-  padding: 14px 0;
-  border-bottom: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  padding: 12px 0;
+  border-bottom: 1.5px solid var(--color-primary-tinte2);
 }
 .pv-pill {
   flex: 1;
@@ -73,16 +173,20 @@
   align-items: flex-start;
   gap: 2px;
   padding: 12px 16px;
-  border: 1px solid var(--color-border);
+  border: 1.5px solid var(--color-primary-tinte2);
   border-radius: 12px;
-  background: var(--color-surface);
+  background: #fff;
   cursor: pointer;
-  font-weight: 650;
+  font-family: inherit;
+  font-weight: 800;
   color: var(--color-primary-dark);
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
+.pv-pill:hover {
+  border-color: var(--color-primary);
+}
 .pv-pill small {
-  font-weight: 500;
+  font-weight: 700;
   color: var(--color-text-secondary);
 }
 .pv-pill.active {
@@ -96,7 +200,7 @@
 .pv-pill.sm {
   flex: 0 0 auto;
   flex-direction: row;
-  padding: 7px 12px;
+  padding: 7px 14px;
   font-size: 13px;
   border-radius: 999px;
 }
@@ -113,7 +217,7 @@
   padding: 8px 10px 8px 14px;
   background: var(--color-primary-dark);
   border-radius: 999px;
-  box-shadow: 0 8px 30px rgba(35, 42, 69, 0.25);
+  box-shadow: 0 8px 30px rgba(35, 42, 69, 0.3);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.18s ease, transform 0.18s ease;
@@ -135,10 +239,10 @@
 .pv-floating .pv-pill.sm.active {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: var(--color-primary-dark);
+  color: var(--color-ink);
 }
 .pv-floating-price {
-  font-weight: 700;
+  font-weight: 900;
   color: #fff;
   padding-right: 8px;
   white-space: nowrap;
@@ -153,10 +257,11 @@
   margin-bottom: 24px;
 }
 .pv-stat-value {
-  font-size: 40px;
-  font-weight: 750;
+  font-size: 42px;
+  font-weight: 900;
   color: var(--color-primary);
   line-height: 1;
+  letter-spacing: -0.02em;
 }
 .pv-stat-label {
   font-size: 13px;
@@ -170,34 +275,38 @@
 }
 .pv-chip {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 6px 14px;
   border-radius: 999px;
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
+  background: var(--color-primary-tinte);
+  border: 1.5px solid var(--color-primary-tinte2);
   color: var(--color-primary-dark);
 }
 
-/* --- 3. Las fugas ------------------------------------------------------- */
+/* --- 3. Las fugas ------------------------------------------------------ */
 
 .pv-fuga-dominante {
-  border: 1px solid var(--color-primary);
-  border-left-width: 4px;
-  border-radius: 12px;
-  padding: 28px;
-  margin-bottom: 20px;
-  background: var(--color-surface);
+  border-left: 6px solid var(--color-primary);
+  border-top: 1.5px solid var(--color-primary-tinte2);
+  border-right: 1.5px solid var(--color-primary-tinte2);
+  border-bottom: 1.5px solid var(--color-primary-tinte2);
+  border-radius: 14px;
+  padding: 26px 28px;
+  margin-bottom: 18px;
+  background: var(--color-primary-tinte);
 }
 .pv-fuga-titulo {
   font-size: 22px;
-  margin: 0 0 12px;
-  color: var(--color-primary-dark);
+  font-weight: 800;
+  margin: 0 0 10px;
+  color: var(--color-ink);
 }
 .pv-fuga-cifra {
   font-size: 34px;
-  font-weight: 750;
-  color: var(--color-primary);
+  font-weight: 900;
+  color: var(--color-primary-dark);
   line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 .pv-fugas-grid {
   display: grid;
@@ -205,21 +314,24 @@
   gap: 12px;
 }
 .pv-fuga {
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 16px;
+  border-left: 6px solid var(--color-primary);
+  border-top: 1.5px solid var(--color-primary-tinte2);
+  border-right: 1.5px solid var(--color-primary-tinte2);
+  border-bottom: 1.5px solid var(--color-primary-tinte2);
+  border-radius: 14px;
+  padding: 16px 18px;
+  background: #fff;
 }
 .pv-fuga.mitigable {
-  border-left: 4px solid var(--color-warning);
+  border-left-color: var(--color-warning);
 }
 .pv-fuga.fuera {
   background: var(--color-surface-muted);
-  color: var(--color-text-secondary);
 }
 .pv-fuga-min-titulo {
-  font-weight: 650;
-  font-size: 14px;
-  color: var(--color-primary-dark);
+  font-weight: 800;
+  font-size: 14.5px;
+  color: var(--color-ink);
 }
 .pv-fuga.fuera .pv-fuga-min-titulo {
   color: var(--color-text-secondary);
@@ -230,57 +342,69 @@
   margin-top: 8px;
 }
 
-/* --- 4. La nota --------------------------------------------------------- */
+/* --- 4. El diagnóstico (caja de nota) ---------------------------------- */
 
-.pv-nota-section {
+.pv-score {
+  background: var(--color-primary-dark);
+  border-radius: 18px;
+  padding: 26px 24px;
+  color: #fff;
   text-align: center;
+  max-width: 520px;
 }
-.pv-nota-letra {
-  font-size: 96px;
-  font-weight: 800;
+.pv-score-cap {
+  font-size: 11.5px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #afc0ff;
+}
+.pv-score-letra {
+  font-size: 88px;
+  font-weight: 900;
+  letter-spacing: -0.05em;
   line-height: 1;
+  margin: 6px 0 2px;
+}
+.pv-score-pts {
+  font-size: 14px;
+  color: #c2ccf2;
+  font-weight: 700;
+}
+.pv-escala {
+  display: flex;
+  gap: 4px;
+  margin-top: 18px;
+}
+.pv-escala div {
+  flex: 1;
+  text-align: center;
+  padding: 7px 2px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.09);
+}
+.pv-escala .g {
+  font-size: 15px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+}
+.pv-escala .r {
+  font-size: 9px;
+  color: #afc0ff;
+  font-weight: 700;
+}
+.pv-escala div.act {
+  background: #fff;
+}
+.pv-escala div.act .g {
+  color: var(--color-primary-dark);
+}
+.pv-escala div.act .r {
   color: var(--color-primary);
 }
-.pv-nota-puntos {
-  font-size: 16px;
-  color: var(--color-text-secondary);
-  margin-top: 4px;
-}
-.pv-benchmark {
-  max-width: 460px;
-  margin: 28px auto 0;
-}
-.pv-benchmark-track {
-  position: relative;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-}
-.pv-benchmark-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--color-primary);
-}
-.pv-benchmark-mark {
-  position: absolute;
-  top: -4px;
-  width: 2px;
-  height: 16px;
-  background: var(--color-primary-dark);
-}
-.pv-benchmark-label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  margin-top: 10px;
-}
 
-/* --- 5. Los planes ------------------------------------------------------ */
+/* --- 5. Los planes ----------------------------------------------------- */
 
 .pv-planes {
   display: grid;
@@ -290,97 +414,111 @@
 .pv-plan-card {
   position: relative;
   text-align: left;
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
+  border: 2px solid var(--color-primary-tinte2);
+  border-radius: 16px;
   padding: 24px 20px;
-  background: var(--color-surface);
+  background: #fff;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
 }
 .pv-plan-card.active {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
+  background: var(--color-primary-tinte);
 }
 .pv-badge-reco {
   position: absolute;
-  top: -10px;
+  top: -11px;
   left: 20px;
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: 900;
+  letter-spacing: 0.04em;
   padding: 3px 10px;
   border-radius: 999px;
   background: var(--color-accent);
-  color: var(--color-primary-dark);
+  color: var(--color-ink);
 }
 .pv-plan-nombre {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 900;
   color: var(--color-primary-dark);
 }
 .pv-plan-frase {
   font-size: 13px;
   color: var(--color-text-secondary);
+  font-weight: 600;
   margin: 8px 0 16px;
   min-height: 3em;
+  line-height: 1.4;
 }
 .pv-plan-precio {
-  font-size: 24px;
-  font-weight: 750;
-  color: var(--color-primary);
+  font-size: 25px;
+  font-weight: 900;
+  color: var(--color-ink);
+  letter-spacing: -0.02em;
 }
 
-/* --- 6. El plano del sistema ------------------------------------------- */
+/* --- 6. El plano del sistema (lienzo) ---------------------------------- */
 
+.pv-lienzo {
+  border: 2.5px solid var(--color-primary);
+  border-radius: 18px;
+  background: #fff;
+  padding: 8px 20px 10px;
+}
 .pv-bands {
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 .pv-band {
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  padding: 20px;
-  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 0;
+  border-bottom: 1.5px dashed var(--color-primary-tinte2);
+}
+.pv-band:last-child {
+  border-bottom: none;
 }
 .pv-band-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 16px;
 }
 .pv-band-num {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  background: var(--color-primary-dark);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-primary);
   color: #fff;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 900;
+  flex: 0 0 auto;
 }
 .pv-band-name {
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 16px;
   color: var(--color-primary-dark);
 }
 .pv-band-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 10px;
 }
 .pv-card {
   position: relative;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
+  background: var(--color-primary-tinte);
+  border: 1.5px solid var(--color-primary-tinte2);
+  border-radius: 12px;
   padding: 12px 14px;
-  background: var(--color-surface);
 }
 .pv-card-nombre {
   font-size: 13px;
-  font-weight: 700;
-  color: var(--color-primary-dark);
+  font-weight: 800;
+  color: var(--color-ink);
   line-height: 1.35;
 }
 .pv-card-chips {
@@ -389,97 +527,121 @@
   gap: 6px;
   margin-top: 8px;
 }
-.pv-chip-cuota,
-.pv-chip-inst {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-}
 .pv-chip-cuota {
-  background: rgba(72, 92, 199, 0.12);
-  color: var(--color-primary);
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-text-secondary);
 }
 .pv-chip-inst {
-  background: var(--color-surface-muted);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  font-size: 10.5px;
+  font-weight: 900;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
   cursor: help;
 }
 .pv-card.locked {
-  color: var(--color-text-secondary);
   background: repeating-linear-gradient(
     45deg,
-    #f3f4f6,
-    #f3f4f6 8px,
-    #eceef1 8px,
-    #eceef1 16px
+    #fff,
+    #fff 5px,
+    #f2f4f8 5px,
+    #f2f4f8 9px
   );
+  border-style: dashed;
+  border-color: var(--color-aten);
 }
 .pv-card.locked .pv-card-nombre {
-  color: var(--color-text-secondary);
+  color: #98a0b3;
 }
 .pv-lock {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  margin-top: 8px;
-}
-
-/* AI node */
-.pv-ai-node {
-  margin-top: 12px;
-  border-radius: 12px;
-  padding: 18px;
-  background: var(--color-primary);
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #98a0b3;
   color: #fff;
 }
+
+/* Nodo IA */
+.pv-ai-node {
+  margin-top: 4px;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 2px solid var(--color-primary);
+}
 .pv-ai-node.locked {
-  background: #9aa1b4;
+  background: repeating-linear-gradient(
+    45deg,
+    #fff,
+    #fff 5px,
+    #f4f6fb 5px,
+    #f4f6fb 9px
+  );
+  border-style: dashed;
+  border-color: var(--color-aten);
 }
 .pv-ai-title {
-  font-weight: 700;
-  margin-bottom: 12px;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--color-primary-dark);
+  margin-bottom: 10px;
+}
+.pv-ai-node.locked .pv-ai-title {
+  color: var(--color-text-secondary);
 }
 .pv-ai-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 .pv-ai-chip {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 7px;
+  background: var(--color-primary-tinte);
+  color: var(--color-primary-dark);
 }
 .pv-ai-chip.locked {
+  background: #f2f4f8;
+  color: #98a0b3;
   text-decoration: line-through;
-  opacity: 0.7;
+  opacity: 0.85;
 }
 .pv-ai-lock {
   font-style: normal;
   text-decoration: none;
-  opacity: 0.9;
 }
 
-/* Integrations rail */
+/* Carril de integraciones */
 .pv-rail {
   margin-top: 28px;
 }
 .pv-rail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 .pv-rail-card {
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border: 1.5px solid var(--color-primary-tinte2);
+  border-radius: 12px;
   padding: 14px;
 }
 .pv-rail-nombre {
-  font-weight: 700;
+  font-weight: 800;
   font-size: 14px;
   color: var(--color-primary-dark);
 }
@@ -489,33 +651,36 @@
   margin: 4px 0 10px;
 }
 .pv-cost-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 6px;
 }
 .badge-incluido {
-  background: #ecfdf5;
-  color: #047857;
+  background: var(--color-accent);
+  color: var(--color-ink);
 }
 .badge-consumo {
-  background: #fffbeb;
-  color: var(--color-warning);
+  background: var(--color-primary-tinte2);
+  color: var(--color-primary-dark);
 }
 .badge-licencia {
-  background: var(--color-surface-muted);
-  color: var(--color-text-secondary);
+  background: #fff1d6;
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
 }
 .badge-cotizar {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
+  background: #fff;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-text-secondary);
 }
 
 .pv-noaplican {
   margin-top: 28px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border: 1.5px solid var(--color-primary-tinte2);
+  border-radius: 14px;
   padding: 18px 20px;
   background: var(--color-surface-muted);
 }
@@ -525,25 +690,25 @@
 }
 .pv-noaplican li {
   font-size: 14px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   color: var(--color-text-secondary);
 }
 .pv-noaplican strong {
   color: var(--color-primary-dark);
 }
 
-/* --- 7. A dónde llega --------------------------------------------------- */
+/* --- 7. A dónde llega (barras de salto) -------------------------------- */
 
 .pv-adonde-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   gap: 16px;
   flex-wrap: wrap;
 }
 .pv-grade-arrow {
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 900;
   color: var(--color-text-secondary);
 }
 .pv-grade-arrow strong {
@@ -557,78 +722,103 @@
 }
 .pv-madurez-row {
   display: grid;
-  grid-template-columns: minmax(140px, 220px) 1fr;
+  grid-template-columns: minmax(140px, 200px) 1fr 120px;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+}
+@media (max-width: 640px) {
+  .pv-madurez-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
 }
 .pv-madurez-nombre {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 800;
   color: var(--color-primary-dark);
 }
-.pv-bar {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-}
-.pv-bar .seg {
-  height: 14px;
-  border-radius: 4px;
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-}
-.pv-bar .seg.hoy {
-  background: #4b5563;
-  border-color: #4b5563;
-}
-.pv-bar .seg.meta {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-}
-.pv-bar-wrap {
+.pv-salto-wrap {
   position: relative;
 }
-.pv-bar-sector {
+.pv-salto-bar {
+  height: 20px;
+  background: var(--color-gris-claro);
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+}
+.pv-salto-hoy {
+  background: var(--color-text-secondary);
+  height: 100%;
+}
+.pv-salto-gana {
+  background: var(--color-primary);
+  height: 100%;
+  transition: width 0.45s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.pv-madurez-row.top .pv-salto-gana {
+  background: var(--color-accent);
+}
+.pv-salto-sector {
   position: absolute;
   top: -3px;
   bottom: -3px;
   width: 2px;
-  background: var(--color-primary-dark);
+  background: var(--color-ink);
   transform: translateX(-1px);
+}
+.pv-salto-lbl {
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  text-align: right;
+}
+.pv-salto-lbl b {
+  color: var(--color-primary-dark);
+}
+@media (max-width: 640px) {
+  .pv-salto-lbl {
+    text-align: left;
+  }
 }
 .pv-bar-legend {
   font-size: 12px;
   color: var(--color-text-secondary);
-  margin: 12px 0 0;
+  margin: 14px 0 0;
 }
 
-/* --- 8. Cierre ---------------------------------------------------------- */
+/* --- 8. Cierre --------------------------------------------------------- */
 
 .pv-cierre {
   text-align: center;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 18px;
+  padding: 40px 24px;
 }
 .pv-cierre-precio {
-  font-size: clamp(40px, 6vw, 56px);
-  font-weight: 800;
-  color: var(--color-primary);
+  font-size: clamp(44px, 6vw, 60px);
+  font-weight: 900;
+  color: #fff;
   line-height: 1;
+  letter-spacing: -0.02em;
   margin-bottom: 24px;
 }
 .pv-cta {
   display: inline-block;
-  padding: 14px 28px;
+  padding: 15px 30px;
   border-radius: 12px;
-  background: var(--color-primary);
-  color: #fff;
-  font-weight: 700;
+  background: var(--color-accent);
+  color: var(--color-ink);
+  font-weight: 900;
   font-size: 16px;
 }
 .pv-cta:hover {
-  background: var(--color-primary-dark);
+  filter: brightness(0.96);
   text-decoration: none;
 }
 
-/* --- Print (A4) --------------------------------------------------------- */
+/* --- Print (A4) -------------------------------------------------------- */
 
 @media print {
   .pv-floating,
@@ -639,8 +829,12 @@
     max-width: none;
     padding: 0;
   }
+  .pv-hero {
+    width: auto;
+    margin-left: 0;
+  }
   .pv-section {
-    padding: 24px 0;
+    margin-top: 24px;
   }
   .pv-band,
   .pv-card,
@@ -648,7 +842,9 @@
   .pv-plan-card,
   .pv-rail-card,
   .pv-fuga,
-  .pv-fuga-dominante {
+  .pv-fuga-dominante,
+  .pv-score,
+  .pv-cierre {
     break-inside: avoid;
     page-break-inside: avoid;
   }

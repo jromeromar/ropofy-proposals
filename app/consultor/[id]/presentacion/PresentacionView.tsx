@@ -10,7 +10,7 @@
  * Exported plainly (no next/link) so it can be server-rendered in tests.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatPrice } from "@/lib/rules";
 import { gradeForPlan } from "@/lib/grade";
 import { isLocked, PLAN_RANK, PLAN_LABEL } from "@/lib/mapLayout";
@@ -91,6 +91,38 @@ export default function PresentacionView({ id, vm, initialPlan }: Props) {
   );
 }
 
+// --- numbered section head ----------------------------------------------
+
+function SecHead({
+  n,
+  children,
+  small,
+}: {
+  n: number;
+  children: ReactNode;
+  small?: string;
+}) {
+  return (
+    <div className="pv-sec-head">
+      <span className="pv-sec-num" aria-hidden="true">
+        {n}
+      </span>
+      <h2 className="pv-h2">{children}</h2>
+      {small && <small className="pv-sec-small">{small}</small>}
+    </div>
+  );
+}
+
+// Grade scale (mirror of lib/grade.ts thresholds).
+const ESCALA_NOTA: Array<{ g: string; r: string }> = [
+  { g: "A", r: "85+" },
+  { g: "B", r: "70" },
+  { g: "C", r: "55" },
+  { g: "D", r: "40" },
+  { g: "E", r: "25" },
+  { g: "F", r: "0" },
+];
+
 // --- global controls ----------------------------------------------------
 
 function PlanSwitcher({
@@ -162,11 +194,23 @@ function Portada({ cliente, titular }: { cliente: string; titular: string }) {
     day: "numeric",
   }).format(new Date());
   return (
-    <section className="pv-section pv-portada">
-      <h1 className="pv-titular">{titular}</h1>
-      <p className="pv-portada-meta">
-        {cliente} · {fecha}
-      </p>
+    <section className="pv-hero">
+      <span className="pv-orbita o1" aria-hidden="true" />
+      <span className="pv-orbita o2" aria-hidden="true" />
+      <div className="pv-hero-in">
+        <div className="pv-wordmark">
+          <span className="dot" aria-hidden="true" />
+          Ropofy
+        </div>
+        <div className="pv-eyebrow">Arquitectura comercial</div>
+        <h1 className="pv-titular">{titular}</h1>
+        <div className="pv-hero-meta">
+          <span>
+            <b>{cliente}</b>
+          </span>
+          <span>{fecha}</span>
+        </div>
+      </div>
     </section>
   );
 }
@@ -189,7 +233,7 @@ function Entendimos({ asIs }: { asIs: AsIs }) {
   const stats = extractStats(asIs);
   return (
     <section className="pv-section">
-      <h2 className="pv-h2">Lo que entendimos</h2>
+      <SecHead n={1}>Lo que entendimos</SecHead>
       {stats.length > 0 && (
         <div className="pv-stats">
           {stats.map((s, i) => (
@@ -216,7 +260,7 @@ function Entendimos({ asIs }: { asIs: AsIs }) {
 function Fugas({ vm }: { vm: PresentacionVM }) {
   return (
     <section className="pv-section">
-      <h2 className="pv-h2">Las fugas</h2>
+      <SecHead n={2}>Las fugas</SecHead>
       {vm.fugaDominante && (
         <div className="pv-fuga-dominante">
           <h3 className="pv-fuga-titulo">{vm.fugaDominante.titulo}</h3>
@@ -254,9 +298,23 @@ function Fugas({ vm }: { vm: PresentacionVM }) {
 
 function LaNota({ vm }: { vm: PresentacionVM }) {
   return (
-    <section className="pv-section pv-nota-section">
-      <div className="pv-nota-letra">{vm.nota.letra}</div>
-      <div className="pv-nota-puntos">{vm.nota.puntos}/100</div>
+    <section className="pv-section">
+      <SecHead n={3} small="Dónde está la operación comercial hoy">
+        El diagnóstico
+      </SecHead>
+      <div className="pv-score">
+        <div className="pv-score-cap">Nota de madurez</div>
+        <div className="pv-score-letra">{vm.nota.letra}</div>
+        <div className="pv-score-pts">{vm.nota.puntos}/100</div>
+        <div className="pv-escala">
+          {ESCALA_NOTA.map((e) => (
+            <div key={e.g} className={e.g === vm.nota.letra ? "act" : ""}>
+              <div className="g">{e.g}</div>
+              <div className="r">{e.r}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }
@@ -276,7 +334,9 @@ function LosPlanes({
 }) {
   return (
     <section className="pv-section">
-      <h2 className="pv-h2">Los planes</h2>
+      <SecHead n={4} small="Elige hasta dónde llevar el sistema">
+        Los planes
+      </SecHead>
       <div className="pv-planes">
         {([1, 2, 3] as Plan[]).map((p) => (
           <button
@@ -353,23 +413,27 @@ function AINode({ entries, plan }: { entries: CompVM[]; plan: Plan }) {
 function ElPlano({ vm, plan }: { vm: PresentacionVM; plan: Plan }) {
   return (
     <section className="pv-section">
-      <h2 className="pv-h2">El plano del sistema</h2>
+      <SecHead n={5} small="Todo lo que se pone a trabajar">
+        El plano del sistema
+      </SecHead>
 
-      <div className="pv-bands">
-        {vm.bands.map((band: BandVM) => (
-          <div className="pv-band" key={band.name}>
-            <div className="pv-band-head">
-              <span className="pv-band-num">{band.numero}</span>
-              <span className="pv-band-name">{band.name}</span>
+      <div className="pv-lienzo">
+        <div className="pv-bands">
+          {vm.bands.map((band: BandVM) => (
+            <div className="pv-band" key={band.name}>
+              <div className="pv-band-head">
+                <span className="pv-band-num">{band.numero}</span>
+                <span className="pv-band-name">{band.name}</span>
+              </div>
+              <div className="pv-band-grid">
+                {band.regular.map((comp) => (
+                  <ComponentCard key={comp.key} comp={comp} plan={plan} />
+                ))}
+              </div>
+              {band.ai.length > 0 && <AINode entries={band.ai} plan={plan} />}
             </div>
-            <div className="pv-band-grid">
-              {band.regular.map((comp) => (
-                <ComponentCard key={comp.key} comp={comp} plan={plan} />
-              ))}
-            </div>
-            {band.ai.length > 0 && <AINode entries={band.ai} plan={plan} />}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       <div className="pv-rail">
@@ -413,10 +477,13 @@ function ADondeLlega({ vm, plan }: { vm: PresentacionVM; plan: Plan }) {
   const key = String(plan) as PlanKey;
   const proyectada = gradeForPlan(vm.madurez, plan);
 
+  let maxGana = 0;
+  for (const m of vm.madurez) maxGana = Math.max(maxGana, m.p[key] - m.hoy);
+
   return (
     <section className="pv-section">
       <div className="pv-adonde-head">
-        <h2 className="pv-h2">A dónde llega</h2>
+        <SecHead n={6}>A dónde llega</SecHead>
         <div className="pv-grade-arrow">
           {vm.nota.letra} <span aria-hidden="true">→</span>{" "}
           <strong>{proyectada.letra}</strong>
@@ -425,26 +492,34 @@ function ADondeLlega({ vm, plan }: { vm: PresentacionVM; plan: Plan }) {
       <div className="pv-madurez">
         {vm.madurez.map((m: MadurezVM, i) => {
           const hoy = m.hoy;
-          const meta = m.p[key];
+          const meta = Math.max(m.p[key], hoy);
           const sector = vm.benchmarkModulos?.[m.m];
+          const hoyPct = (hoy / 4) * 100;
+          const ganaPct = ((meta - hoy) / 4) * 100;
+          const top = maxGana > 0 && m.p[key] - hoy === maxGana;
           return (
-            <div className="pv-madurez-row" key={i}>
+            <div className={`pv-madurez-row${top ? " top" : ""}`} key={i}>
               <div className="pv-madurez-nombre">{m.m}</div>
-              <div className="pv-bar-wrap">
-                <div className="pv-bar">
-                  {[0, 1, 2, 3].map((seg) => {
-                    const cls =
-                      seg < hoy ? "seg hoy" : seg < meta ? "seg meta" : "seg";
-                    return <span className={cls} key={seg} />;
-                  })}
+              <div className="pv-salto-wrap">
+                <div className="pv-salto-bar">
+                  <span className="pv-salto-hoy" style={{ width: `${hoyPct}%` }} />
+                  {ganaPct > 0 && (
+                    <span
+                      className="pv-salto-gana"
+                      style={{ width: `${ganaPct}%` }}
+                    />
+                  )}
                 </div>
                 {typeof sector === "number" && (
                   <span
-                    className="pv-bar-sector"
+                    className="pv-salto-sector"
                     style={{ left: `${(sector / 4) * 100}%` }}
                     title={`Promedio del sector: ${sector}`}
                   />
                 )}
+              </div>
+              <div className="pv-salto-lbl">
+                Hoy {hoy} · <b>meta {meta}</b>
               </div>
             </div>
           );
