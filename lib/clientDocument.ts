@@ -102,6 +102,7 @@ export function buildClientDocument(
       nombre_cliente: comp.nombre_cliente,
       beneficio: comp.beneficio ?? null,
       plan: comp.plan,
+      cortesiaPlan: comp.cortesiaPlan ?? null,
       vis: comp.vis,
       journey: comp.journey,
       instancias: comp.instancias,

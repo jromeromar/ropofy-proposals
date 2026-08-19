@@ -88,6 +88,13 @@ export interface Componente {
    * inventory). Excluded features never reach the plano or the client snapshot.
    */
   incluido?: boolean;
+  /**
+   * Courtesy grant: the (lower) plan into which this higher-tier feature is
+   * gifted for THIS proposal. Its natural `plan` is preserved, so it renders
+   * unlocked with a "cortesía" gift while still showing which tier it came
+   * from. Absent = no courtesy.
+   */
+  cortesiaPlan?: PlanNombre;
 }
 
 export interface MultiplicadorPlan {

@@ -38,6 +38,8 @@ export interface InventarioItem {
 export interface CompVM {
   /** Synthesised, id-free React key (never the internal component id). */
   key: string;
+  /** Courtesy grant tier, or null (see Componente.cortesiaPlan). */
+  cortesiaPlan: PlanNombre | null;
   /**
    * Positional index into the proposal's `componentes` enumeration. A plain
    * number (not an internal id), used only to address the field for inline
@@ -163,6 +165,7 @@ function toCompVM(
   return {
     key,
     idx,
+    cortesiaPlan: comp.cortesiaPlan ?? null,
     nombre: comp.nombre_cliente,
     plan: comp.plan,
     instancias: comp.instancias,

@@ -21,6 +21,7 @@ export interface ClientComp {
   nombre: string;
   beneficio: string | null;
   plan: PlanNombre;
+  cortesiaPlan: PlanNombre | null;
   vis: Visibilidad;
   journey: number;
   instancias: number;
@@ -122,6 +123,7 @@ export function toClientDocVM(doc: ClientDocument, sentAt: string): ClientDocVM 
     nombre: String(c.nombre_cliente ?? ""),
     beneficio: (c.beneficio as string | null) ?? null,
     plan: c.plan as PlanNombre,
+    cortesiaPlan: (c.cortesiaPlan as PlanNombre | null) ?? null,
     vis: c.vis as Visibilidad,
     journey: Number(c.journey ?? 0),
     instancias: Number(c.instancias ?? 1),

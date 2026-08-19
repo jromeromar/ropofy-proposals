@@ -22,7 +22,13 @@ import {
 import { formatPrice } from "@/lib/rules";
 import { guardarInline, type EdicionInline } from "./actions";
 import { gradeForPlan } from "@/lib/grade";
-import { isLocked, PLAN_RANK, PLAN_LABEL, BAND_ORDER } from "@/lib/mapLayout";
+import {
+  isLocked,
+  esCortesia,
+  PLAN_RANK,
+  PLAN_LABEL,
+  BAND_ORDER,
+} from "@/lib/mapLayout";
 import type {
   PresentacionVM,
   BandVM,
@@ -77,14 +83,15 @@ const PLAN_NOMBRE: Record<Plan, PlanNombre> = {
   3: "inteligente",
 };
 
-// "Incluir en este plan" quick action for locked cards in the plano.
-interface IncluirCtx {
-  incluyendoIdx: number | null;
-  incluir: (idx: number) => void;
+// Courtesy grant/remove from the plano (click the lock to gift, the gift to
+// undo). Consultant-only; the client document renders the gift read-only.
+interface CortesiaCtx {
+  ocupadoIdx: number | null;
+  setCortesia: (idx: number, plan: PlanNombre | null) => void;
 }
-const IncluirContext = createContext<IncluirCtx>({
-  incluyendoIdx: null,
-  incluir: () => {},
+const CortesiaContext = createContext<CortesiaCtx>({
+  ocupadoIdx: null,
+  setCortesia: () => {},
 });
 
 /** A field that becomes contentEditable in edit mode; commits on blur. */
@@ -168,22 +175,22 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
     set: (kk, v) => setEdits((prev) => ({ ...prev, [kk]: v })),
   };
 
-  // Give a locked feature to the currently-selected plan (extend the scope).
-  const [incluyendoIdx, setIncluyendoIdx] = useState<number | null>(null);
-  async function incluirEnPlan(idx: number) {
-    setIncluyendoIdx(idx);
+  // Grant/remove a courtesy (extend a plan's scope with a higher-tier feature).
+  const [ocupadoIdx, setOcupadoIdx] = useState<number | null>(null);
+  async function setCortesia(idx: number, cortesiaPlan: PlanNombre | null) {
+    setOcupadoIdx(idx);
     try {
       const res = await guardarInline({
         id,
-        ediciones: [{ campo: "compPlan", idx, plan: PLAN_NOMBRE[plan] }],
+        ediciones: [{ campo: "compCortesia", idx, cortesiaPlan }],
       });
       if (res.ok && typeof window !== "undefined") window.location.reload();
-      else setIncluyendoIdx(null);
+      else setOcupadoIdx(null);
     } catch {
-      setIncluyendoIdx(null);
+      setOcupadoIdx(null);
     }
   }
-  const incluirCtx: IncluirCtx = { incluyendoIdx, incluir: incluirEnPlan };
+  const cortesiaCtx: CortesiaCtx = { ocupadoIdx, setCortesia };
 
   function cancelarEdicion() {
     setEdits({});
@@ -246,7 +253,7 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
 
   return (
     <EditContext.Provider value={editCtx}>
-    <IncluirContext.Provider value={incluirCtx}>
+    <CortesiaContext.Provider value={cortesiaCtx}>
     <div className={`pv${editing ? " pv-editando" : ""}`}>
       <Portada cliente={vm.cliente} marca={marca ?? null} titular={vm.titular} />
 
@@ -333,7 +340,7 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
       <ADondeLlega vm={vm} plan={plan} />
       <Cierre id={id} plan={plan} precio={precio} />
     </div>
-    </IncluirContext.Provider>
+    </CortesiaContext.Provider>
     </EditContext.Provider>
   );
 }
@@ -783,10 +790,14 @@ function ComponentChips({ comp }: { comp: CompVM }) {
 
 function ComponentCard({ comp, plan }: { comp: CompVM; plan: Plan }) {
   const { editing } = useContext(EditContext);
-  const { incluyendoIdx, incluir } = useContext(IncluirContext);
-  const locked = isLocked(comp.plan, plan);
+  const { ocupadoIdx, setCortesia } = useContext(CortesiaContext);
+  const locked = isLocked(comp.plan, plan, comp.cortesiaPlan);
+  const cortesia = esCortesia(comp.plan, plan, comp.cortesiaPlan);
+  const busy = ocupadoIdx === comp.idx;
   return (
-    <div className={`pv-card${locked ? " locked" : ""}`}>
+    <div
+      className={`pv-card${locked ? " locked" : ""}${cortesia ? " cortesia" : ""}`}
+    >
       <Editable
         k={`comp:${comp.idx}`}
         value={comp.nombre}
@@ -794,20 +805,36 @@ function ComponentCard({ comp, plan }: { comp: CompVM; plan: Plan }) {
         className="pv-card-nombre"
       />
       <ComponentChips comp={comp} />
-      {locked && (
-        <div className="pv-lock">🔒 {PLAN_LABEL[PLAN_RANK[comp.plan]]}</div>
-      )}
-      {locked && !editing && (
+      {cortesia ? (
         <button
           type="button"
-          className="pv-incluir"
-          onClick={() => incluir(comp.idx)}
-          disabled={incluyendoIdx !== null}
+          className="pv-cortesia-badge"
+          title={
+            editing
+              ? "Cortesía"
+              : `Cortesía de ${PLAN_LABEL[PLAN_RANK[comp.plan]]} — clic para quitar`
+          }
+          onClick={() => !editing && setCortesia(comp.idx, null)}
+          disabled={editing || busy}
         >
-          {incluyendoIdx === comp.idx
-            ? "Incluyendo…"
-            : `＋ Incluir en ${PLAN_LABEL[plan]}`}
+          🎁 Cortesía · {PLAN_LABEL[PLAN_RANK[comp.plan]]}
         </button>
+      ) : (
+        locked && (
+          <button
+            type="button"
+            className="pv-lock pv-lock-btn"
+            title={
+              editing
+                ? undefined
+                : `Incluir como cortesía en ${PLAN_LABEL[plan]}`
+            }
+            onClick={() => !editing && setCortesia(comp.idx, PLAN_NOMBRE[plan])}
+            disabled={editing || busy}
+          >
+            🔒 {PLAN_LABEL[PLAN_RANK[comp.plan]]}
+          </button>
+        )
       )}
     </div>
   );
@@ -815,27 +842,48 @@ function ComponentCard({ comp, plan }: { comp: CompVM; plan: Plan }) {
 
 function AINode({ entries, plan }: { entries: CompVM[]; plan: Plan }) {
   const { editing } = useContext(EditContext);
-  const { incluyendoIdx, incluir } = useContext(IncluirContext);
-  const allLocked = entries.every((e) => isLocked(e.plan, plan));
+  const { ocupadoIdx, setCortesia } = useContext(CortesiaContext);
+  const allLocked = entries.every((e) => isLocked(e.plan, plan, e.cortesiaPlan));
   return (
     <div className={`pv-ai-node${allLocked ? " locked" : ""}`}>
       <div className="pv-ai-title">Su asistente de IA — uno solo, con habilidades</div>
       <div className="pv-ai-chips">
         {entries.map((e) => {
-          const locked = isLocked(e.plan, plan);
+          const locked = isLocked(e.plan, plan, e.cortesiaPlan);
+          const cortesia = esCortesia(e.plan, plan, e.cortesiaPlan);
+          const busy = ocupadoIdx === e.idx;
           return (
-            <span className={`pv-ai-chip${locked ? " locked" : ""}`} key={e.key}>
+            <span
+              className={`pv-ai-chip${locked ? " locked" : ""}${cortesia ? " cortesia" : ""}`}
+              key={e.key}
+            >
               <Editable k={`comp:${e.idx}`} value={e.nombre} />
-              {locked && <em className="pv-ai-lock"> 🔒 {PLAN_LABEL[PLAN_RANK[e.plan]]}</em>}
-              {locked && !editing && (
+              {cortesia && (
                 <button
                   type="button"
-                  className="pv-incluir-mini"
-                  title={`Incluir en ${PLAN_LABEL[plan]}`}
-                  onClick={() => incluir(e.idx)}
-                  disabled={incluyendoIdx !== null}
+                  className="pv-ai-cortesia"
+                  title={
+                    editing
+                      ? "Cortesía"
+                      : `Cortesía de ${PLAN_LABEL[PLAN_RANK[e.plan]]} — clic para quitar`
+                  }
+                  onClick={() => !editing && setCortesia(e.idx, null)}
+                  disabled={editing || busy}
                 >
-                  {incluyendoIdx === e.idx ? "…" : "＋"}
+                  🎁
+                </button>
+              )}
+              {locked && (
+                <button
+                  type="button"
+                  className="pv-ai-lock pv-ai-lock-btn"
+                  title={
+                    editing ? undefined : `Incluir como cortesía en ${PLAN_LABEL[plan]}`
+                  }
+                  onClick={() => !editing && setCortesia(e.idx, PLAN_NOMBRE[plan])}
+                  disabled={editing || busy}
+                >
+                  🔒 {PLAN_LABEL[PLAN_RANK[e.plan]]}
                 </button>
               )}
             </span>

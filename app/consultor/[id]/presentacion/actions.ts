@@ -17,7 +17,8 @@ export type EdicionInline =
   | { campo: "fugaTitulo" | "fugaValor"; idx: number; valor: string }
   | { campo: "compNombre"; idx: number; valor: string }
   | { campo: "compIncluido"; idx: number; incluido: boolean }
-  | { campo: "compPlan"; idx: number; plan: PlanNombre };
+  | { campo: "compPlan"; idx: number; plan: PlanNombre }
+  | { campo: "compCortesia"; idx: number; cortesiaPlan: PlanNombre | null };
 
 export type GuardarInlineResult = { ok: true } | { ok: false; errors: string[] };
 
@@ -64,6 +65,14 @@ export async function guardarInline(input: {
       case "compPlan": {
         const k = keys[e.idx];
         if (k) data.componentes[k].plan = e.plan;
+        break;
+      }
+      case "compCortesia": {
+        const k = keys[e.idx];
+        if (k) {
+          if (e.cortesiaPlan) data.componentes[k].cortesiaPlan = e.cortesiaPlan;
+          else delete data.componentes[k].cortesiaPlan;
+        }
         break;
       }
     }
