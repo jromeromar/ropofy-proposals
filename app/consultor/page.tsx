@@ -75,6 +75,12 @@ export default async function ConsultorHome() {
                     Ver presentación
                   </Link>
                   <Link
+                    href={`/consultor/${p.id}/editar`}
+                    className="btn btn-secondary"
+                  >
+                    Editar contenido
+                  </Link>
+                  <Link
                     href={`/consultor/${p.id}/cotizar`}
                     className="btn btn-secondary"
                   >
