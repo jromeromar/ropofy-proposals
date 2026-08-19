@@ -40,8 +40,13 @@ export interface TokenResolution {
 }
 
 export interface ProposalStorage {
-  /** Persist a fresh proposal as version "v1". Returns the stored record. */
-  saveProposal(data: Proposal): Promise<StoredProposal>;
+  /**
+   * Persist a fresh proposal as version "v1". `marca` is the optional brand
+   * name (the JSON only carries the legal name in `cliente`).
+   */
+  saveProposal(data: Proposal, marca?: string | null): Promise<StoredProposal>;
+  /** Set/correct the brand name on an existing proposal. */
+  setMarca(id: string, marca: string | null): Promise<StoredProposal>;
   /** Fetch the current head record for an id, or null if unknown. */
   getProposal(id: string): Promise<StoredProposal | null>;
   /** All stored proposals (head records), newest first. */
@@ -104,10 +109,16 @@ function generateToken(): string {
   return crypto.randomBytes(18).toString("base64url");
 }
 
-function newRecord(id: string, data: Proposal, version: string): StoredProposal {
+function newRecord(
+  id: string,
+  data: Proposal,
+  version: string,
+  marca?: string | null,
+): StoredProposal {
   return {
     id,
     cliente: data.cliente,
+    marca: marca ?? null,
     version,
     createdAt: nowIso(),
     estado: "borrador",
@@ -191,13 +202,26 @@ class MemoryFileStorage implements ProposalStorage {
     }
   }
 
-  async saveProposal(data: Proposal): Promise<StoredProposal> {
+  async saveProposal(
+    data: Proposal,
+    marca?: string | null,
+  ): Promise<StoredProposal> {
     await this.load();
     const id = generateId(data.cliente);
-    const rec = newRecord(id, data, "v1");
+    const rec = newRecord(id, data, "v1", marca);
     this.map.set(id, rec);
     await this.persist();
     return rec;
+  }
+
+  async setMarca(id: string, marca: string | null): Promise<StoredProposal> {
+    await this.load();
+    const existing = this.map.get(id);
+    if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
+    existing.marca = marca && marca.trim() !== "" ? marca.trim() : null;
+    this.map.set(id, existing);
+    await this.persist();
+    return existing;
   }
 
   async getProposal(id: string): Promise<StoredProposal | null> {
@@ -333,12 +357,23 @@ class KvStorage implements ProposalStorage {
     this.redis = new Redis({ url: env.url, token: env.token });
   }
 
-  async saveProposal(data: Proposal): Promise<StoredProposal> {
+  async saveProposal(
+    data: Proposal,
+    marca?: string | null,
+  ): Promise<StoredProposal> {
     const id = generateId(data.cliente);
-    const rec = newRecord(id, data, "v1");
+    const rec = newRecord(id, data, "v1", marca);
     await this.redis.set(kvKey(id), rec);
     await this.redis.sadd(KV_INDEX, id);
     return rec;
+  }
+
+  async setMarca(id: string, marca: string | null): Promise<StoredProposal> {
+    const existing = await this.getProposal(id);
+    if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
+    existing.marca = marca && marca.trim() !== "" ? marca.trim() : null;
+    await this.redis.set(kvKey(id), existing);
+    return existing;
   }
 
   async getProposal(id: string): Promise<StoredProposal | null> {
@@ -454,7 +489,8 @@ export function usingSharedStore(): boolean {
 }
 
 export const storage: ProposalStorage = {
-  saveProposal: (data) => getStorage().saveProposal(data),
+  saveProposal: (data, marca) => getStorage().saveProposal(data, marca),
+  setMarca: (id, marca) => getStorage().setMarca(id, marca),
   getProposal: (id) => getStorage().getProposal(id),
   listProposals: () => getStorage().listProposals(),
   saveVersion: (id, data) => getStorage().saveVersion(id, data),

@@ -46,6 +46,8 @@ export interface MadurezVM {
 
 export interface ClientDocVM {
   cliente: string;
+  /** Brand / trade name (or null); shown alongside the legal name. */
+  marca: string | null;
   titular: string;
   resumen: string;
   sentAt: string;
@@ -141,6 +143,7 @@ export function toClientDocVM(doc: ClientDocument, sentAt: string): ClientDocVM 
 
   return {
     cliente: doc.cliente,
+    marca: (doc.marca as string | null) ?? null,
     titular: String(doc.titular ?? ""),
     resumen: String(doc.resumen ?? ""),
     sentAt,

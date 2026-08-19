@@ -138,6 +138,30 @@ describe("documento del cliente — bloque de precio", () => {
   });
 });
 
+describe("documento del cliente — marca", () => {
+  it("muestra «Marca (Razón social)» cuando hay marca", () => {
+    const data = loadFixture();
+    const condicion = construirCondicion(data, 2, {
+      descuentoPct: null,
+      vigencia: null,
+      autor: "Ana Consultora",
+      aprobador: null,
+    });
+    const doc = buildClientDocument(data, condicion, 2, "Gosen Casa de Comidas");
+    const vm = toClientDocVM(doc, "2026-08-14T15:00:00.000Z");
+    const html = renderToStaticMarkup(
+      React.createElement(ClientDocView, {
+        vm,
+        token: "tok",
+        nowIso: "2026-08-20T00:00:00.000Z",
+        acceptance: null,
+      }),
+    );
+    const text = visibleText(html);
+    expect(text).toContain(`Gosen Casa de Comidas (${data.cliente})`);
+  });
+});
+
 describe("documento del cliente — contenido y aceptación", () => {
   it("se explica solo: incluye prose, cita y clave de lectura", () => {
     const text = visibleText(

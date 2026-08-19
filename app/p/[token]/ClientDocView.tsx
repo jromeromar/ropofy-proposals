@@ -191,7 +191,8 @@ function Portada({ vm }: { vm: ClientDocVM }) {
         </p>
         <div className="cd-hero-meta">
           <span>
-            Preparado para <b>{vm.cliente}</b>
+            Preparado para{" "}
+            <b>{vm.marca ? `${vm.marca} (${vm.cliente})` : vm.cliente}</b>
           </span>
           <span>{formatFecha(vm.sentAt)}</span>
         </div>

@@ -61,6 +61,7 @@ export default function NuevaPropuesta() {
   const [listaEstado, setListaEstado] = useState<"idle" | "ok" | "error">("idle");
   const [asociarA, setAsociarA] = useState("");
   const [sugeridoId, setSugeridoId] = useState<string | null>(null);
+  const [marca, setMarca] = useState("");
 
   const [summary, setSummary] = useState<Summary | null>(null);
 
@@ -125,7 +126,9 @@ export default function NuevaPropuesta() {
     try {
       const url = asociarA
         ? `/api/proposals?version_of=${encodeURIComponent(asociarA)}`
-        : "/api/proposals";
+        : marca.trim()
+          ? `/api/proposals?marca=${encodeURIComponent(marca.trim())}`
+          : "/api/proposals";
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -211,6 +214,8 @@ export default function NuevaPropuesta() {
           asociarA={asociarA}
           setAsociarA={setAsociarA}
           sugeridoId={sugeridoId}
+          marca={marca}
+          setMarca={setMarca}
           loading={loading}
           onGuardar={handleGuardar}
           onVolver={() => {
@@ -246,6 +251,8 @@ function AsociarPaso({
   asociarA,
   setAsociarA,
   sugeridoId,
+  marca,
+  setMarca,
   loading,
   onGuardar,
   onVolver,
@@ -257,6 +264,8 @@ function AsociarPaso({
   asociarA: string;
   setAsociarA: (v: string) => void;
   sugeridoId: string | null;
+  marca: string;
+  setMarca: (v: string) => void;
   loading: boolean;
   onGuardar: () => void;
   onVolver: () => void;
@@ -316,6 +325,24 @@ function AsociarPaso({
             </p>
           )}
         </div>
+
+        {!asociarA && (
+          <div>
+            <label htmlFor="marca">Marca (opcional)</label>
+            <input
+              id="marca"
+              type="text"
+              value={marca}
+              onChange={(e) => setMarca(e.target.value)}
+              placeholder="Nombre comercial, p. ej. Gosen Casa de Comidas"
+            />
+            <p className="muted" style={{ marginTop: 6 }}>
+              La razón social es «{proposal.cliente}». Si el cliente usa una
+              marca distinta, escríbela aquí; el documento mostrará «Marca
+              (Razón social)».
+            </p>
+          </div>
+        )}
 
         {errors.length > 0 && <ErrorBox title="No se pudo guardar" errors={errors} />}
 

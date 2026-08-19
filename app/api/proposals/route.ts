@@ -17,11 +17,48 @@ export async function GET() {
   const list = proposals.map((p) => ({
     id: p.id,
     cliente: p.cliente,
+    marca: p.marca ?? null,
     version: p.version,
     createdAt: p.createdAt,
     sentCount: p.sentVersions.length,
   }));
   return NextResponse.json({ proposals: list });
+}
+
+/**
+ * PATCH /api/proposals?id=<id> — correct the brand name on a proposal.
+ * Body: { marca: string | null }.
+ */
+export async function PATCH(request: Request) {
+  const id = new URL(request.url).searchParams.get("id");
+  if (!id) {
+    return NextResponse.json(
+      { ok: false, errors: ["Falta el parámetro «id»."] },
+      { status: 400 },
+    );
+  }
+  let body: { marca?: unknown };
+  try {
+    body = (await request.json()) as { marca?: unknown };
+  } catch {
+    return NextResponse.json(
+      { ok: false, errors: ["El cuerpo de la petición no es un JSON válido."] },
+      { status: 400 },
+    );
+  }
+  const marca =
+    typeof body.marca === "string" && body.marca.trim() !== ""
+      ? body.marca.trim()
+      : null;
+  const existing = await storage.getProposal(id);
+  if (!existing) {
+    return NextResponse.json(
+      { ok: false, errors: [`No existe una propuesta con id «${id}».`] },
+      { status: 404 },
+    );
+  }
+  const updated = await storage.setMarca(id, marca);
+  return NextResponse.json({ ok: true, marca: updated.marca ?? null });
 }
 
 /**
@@ -52,7 +89,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const versionOf = new URL(request.url).searchParams.get("version_of");
+  const params = new URL(request.url).searchParams;
+  const versionOf = params.get("version_of");
   if (versionOf) {
     const existing = await storage.getProposal(versionOf);
     if (!existing) {
@@ -73,6 +111,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const stored = await storage.saveProposal(body as Proposal);
+  const marcaParam = params.get("marca");
+  const marca = marcaParam && marcaParam.trim() !== "" ? marcaParam.trim() : null;
+  const stored = await storage.saveProposal(body as Proposal, marca);
   return NextResponse.json({ ok: true, proposal: stored }, { status: 201 });
 }

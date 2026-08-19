@@ -2,6 +2,7 @@ import Link from "next/link";
 import { storage } from "@/lib/storage";
 import type { StoredProposal } from "@/lib/types";
 import CopyLink from "./CopyLink";
+import EditMarca from "./EditMarca";
 
 // Always read fresh from storage.
 export const dynamic = "force-dynamic";
@@ -58,6 +59,9 @@ export default async function ConsultorHome() {
                   <div>
                     <span className="accent-dot" aria-hidden="true" />
                     <strong>{p.cliente}</strong>
+                  </div>
+                  <div className="list-item-meta">
+                    <EditMarca id={p.id} marca={p.marca ?? null} />
                   </div>
                   <div className="list-item-meta">
                     <code>{p.id}</code> · cargada {formatFecha(p.createdAt)}

@@ -66,8 +66,12 @@ export function buildClientDocument(
   data: Proposal,
   condicion: AppliedCondition,
   plan: PlanNumero,
+  marca?: string | null,
 ): ClientDocument {
   const doc = JSON.parse(JSON.stringify(data)) as Record<string, unknown>;
+
+  // Brand name, frozen into the snapshot (the JSON only carries the legal name).
+  doc.marca = marca && marca.trim() !== "" ? marca.trim() : null;
 
   // Internal, top-level: pricing internals and pipeline scaffolding.
   delete doc.multiplicador_calculado;
