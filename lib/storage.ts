@@ -47,6 +47,12 @@ export interface ProposalStorage {
   saveProposal(data: Proposal, marca?: string | null): Promise<StoredProposal>;
   /** Set/correct the brand name on an existing proposal. */
   setMarca(id: string, marca: string | null): Promise<StoredProposal>;
+  /**
+   * Replace the head proposal data IN PLACE — a live content correction (fix a
+   * typo, a wrong figure). Keeps the version tag and the immutable sent-version
+   * history; already-sent frozen documents are untouched.
+   */
+  updateProposalData(id: string, data: Proposal): Promise<StoredProposal>;
   /** Fetch the current head record for an id, or null if unknown. */
   getProposal(id: string): Promise<StoredProposal | null>;
   /** All stored proposals (head records), newest first. */
@@ -224,6 +230,17 @@ class MemoryFileStorage implements ProposalStorage {
     return existing;
   }
 
+  async updateProposalData(id: string, data: Proposal): Promise<StoredProposal> {
+    await this.load();
+    const existing = this.map.get(id);
+    if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
+    existing.data = data;
+    existing.cliente = data.cliente;
+    this.map.set(id, existing);
+    await this.persist();
+    return existing;
+  }
+
   async getProposal(id: string): Promise<StoredProposal | null> {
     await this.load();
     return this.map.get(id) ?? null;
@@ -376,6 +393,15 @@ class KvStorage implements ProposalStorage {
     return existing;
   }
 
+  async updateProposalData(id: string, data: Proposal): Promise<StoredProposal> {
+    const existing = await this.getProposal(id);
+    if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
+    existing.data = data;
+    existing.cliente = data.cliente;
+    await this.redis.set(kvKey(id), existing);
+    return existing;
+  }
+
   async getProposal(id: string): Promise<StoredProposal | null> {
     return (await this.redis.get<StoredProposal>(kvKey(id))) ?? null;
   }
@@ -491,6 +517,7 @@ export function usingSharedStore(): boolean {
 export const storage: ProposalStorage = {
   saveProposal: (data, marca) => getStorage().saveProposal(data, marca),
   setMarca: (id, marca) => getStorage().setMarca(id, marca),
+  updateProposalData: (id, data) => getStorage().updateProposalData(id, data),
   getProposal: (id) => getStorage().getProposal(id),
   listProposals: () => getStorage().listProposals(),
   saveVersion: (id, data) => getStorage().saveVersion(id, data),

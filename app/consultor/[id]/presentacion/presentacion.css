@@ -818,6 +818,33 @@
   text-decoration: none;
 }
 
+/* Editar contenido — control discreto del consultor (no para el cliente) */
+.pv-editar {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 45;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-primary-dark);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+  border: 1.5px solid var(--color-primary-tinte2);
+  border-radius: 999px;
+  padding: 8px 14px;
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgba(35, 42, 69, 0.1);
+}
+.pv-editar:hover {
+  border-color: var(--color-primary);
+  text-decoration: none;
+}
+@media print {
+  .pv-editar {
+    display: none;
+  }
+}
+
 /* --- Print (A4) -------------------------------------------------------- */
 
 @media print {

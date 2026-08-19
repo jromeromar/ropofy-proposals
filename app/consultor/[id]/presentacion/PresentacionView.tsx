@@ -82,6 +82,10 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
         precio={precio}
       />
 
+      <a className="pv-editar" href={`/consultor/${id}/editar`}>
+        Editar contenido
+      </a>
+
       <Entendimos asIs={vm.asIs} />
       <Fugas vm={vm} />
       <LaNota vm={vm} />

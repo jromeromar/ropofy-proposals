@@ -1,0 +1,136 @@
+/* ==========================================================================
+   Pantalla de edición de contenido (consultor). Formulario denso pero claro,
+   con barra de guardado fija para corregir en vivo durante la presentación.
+   ========================================================================== */
+
+.ed {
+  padding-bottom: 96px;
+}
+.ed-sec h2 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--color-primary-dark);
+}
+.ed-subsec {
+  border-top: 1px solid var(--color-border);
+  padding-top: 14px;
+}
+.ed-subsec h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--color-primary-dark);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ed-campo {
+  display: block;
+  margin: 0;
+}
+.ed-campo-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+}
+.ed-campo input,
+.ed-campo textarea {
+  width: 100%;
+}
+.ed-campo textarea {
+  min-height: 96px;
+}
+.ed-ta-corta {
+  min-height: 64px !important;
+}
+
+.ed-grid2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+@media (min-width: 720px) {
+  .ed-grid2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.ed-asis-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--color-border);
+}
+.ed-asis-row:last-child {
+  border-bottom: none;
+}
+@media (min-width: 760px) {
+  .ed-asis-row {
+    grid-template-columns: 1.2fr 2fr 0.8fr 1fr;
+    align-items: end;
+  }
+}
+
+.ed-comp {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--color-border);
+}
+.ed-comp:last-of-type {
+  border-bottom: none;
+}
+@media (min-width: 760px) {
+  .ed-comp {
+    grid-template-columns: auto 1.3fr 1.7fr;
+    align-items: end;
+  }
+}
+.ed-comp-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ed-tag {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--color-primary-tinte);
+  color: var(--color-primary-dark);
+}
+.ed-tag-dom {
+  background: var(--color-accent);
+  color: var(--color-ink);
+}
+
+.ed-savebar {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 14px 0;
+  margin-top: 8px;
+  background: linear-gradient(
+    to top,
+    var(--color-bg) 60%,
+    rgba(255, 255, 255, 0)
+  );
+}
+.ed-saved {
+  margin-right: auto;
+  color: #047857;
+  font-weight: 700;
+  font-size: 14px;
+}
