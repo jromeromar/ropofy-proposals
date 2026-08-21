@@ -1,0 +1,211 @@
+/* ==========================================================================
+   Escritorio de propuestas del consultor. Tabla + KPIs + filtros, con el
+   lenguaje visual de marca (Nunito Sans, morado, lima, tintes).
+   ========================================================================== */
+
+/* KPIs */
+.pr-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+@media (min-width: 760px) {
+  .pr-kpis {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.pr-kpi {
+  border: 1.5px solid var(--color-primary-tinte2);
+  border-radius: 14px;
+  background: #fff;
+  padding: 16px 18px;
+}
+.pr-kpi-val {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--color-primary-dark);
+}
+.pr-kpi-lbl {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+/* Tabs */
+.pr-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1.5px solid var(--color-primary-tinte2);
+}
+.pr-tab {
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  padding: 8px 4px;
+  margin-bottom: -1.5px;
+  cursor: pointer;
+}
+.pr-tab.on {
+  color: var(--color-primary-dark);
+  border-bottom-color: var(--color-primary);
+}
+
+/* Filters */
+.pr-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.pr-filtros .pr-buscar {
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+.pr-filtros select {
+  width: auto;
+  min-width: 150px;
+}
+.pr-fecha {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+.pr-fecha input {
+  width: auto;
+  padding: 7px 9px;
+  font-size: 13px;
+}
+.pr-limpiar {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* Table */
+.pr-tabla-wrap {
+  overflow-x: auto;
+  border: 1.5px solid var(--color-primary-tinte2);
+  border-radius: 14px;
+  background: #fff;
+}
+.pr-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 820px;
+}
+.pr-tabla th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  padding: 12px 14px;
+  border-bottom: 1.5px solid var(--color-primary-tinte2);
+  white-space: nowrap;
+}
+.pr-tabla td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-gris-claro);
+  font-size: 13.5px;
+  color: var(--color-ink);
+  vertical-align: top;
+}
+.pr-tabla tr:last-child td {
+  border-bottom: none;
+}
+.pr-id {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.pr-cliente {
+  font-weight: 800;
+  color: var(--color-primary-dark);
+}
+.pr-marca {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+/* Status badge */
+.pr-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pr-badge.borrador {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+.pr-badge.enviada {
+  background: var(--color-primary-tinte);
+  color: var(--color-primary-dark);
+}
+.pr-badge.aceptada {
+  background: var(--color-accent);
+  color: var(--color-ink);
+}
+.pr-badge.expirada {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+/* Actions */
+.pr-acciones-h {
+  text-align: left;
+}
+.pr-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.pr-acciones a {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+.pr-archivar {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 3px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pr-archivar:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+}
+.pr-archivar:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

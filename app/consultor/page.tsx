@@ -1,116 +1,34 @@
-import Link from "next/link";
 import { storage } from "@/lib/storage";
-import type { StoredProposal } from "@/lib/types";
-import CopyLink from "./CopyLink";
-import EditMarca from "./EditMarca";
+import { estadoDe, ultimaVersion } from "@/lib/estadoPropuesta";
+import ProposalsTable, { type FilaPropuesta } from "./ProposalsTable";
+import "./consultor.css";
 
 // Always read fresh from storage.
 export const dynamic = "force-dynamic";
 
-function formatFecha(iso: string): string {
-  try {
-    return new Intl.DateTimeFormat("es-CO", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
 /**
- * Minimal technical admin fallback. Proposal MANAGEMENT lives in Ropofy (the
- * CRM) — this page exists only to find a proposal's id, its versions, and the
- * shareable /p/ link. No estados, activity feeds or decision signals here.
+ * Consultant home: the light status desk for proposals. Management proper lives
+ * in Ropofy (the CRM); here the consultant sees each proposal's derived status,
+ * searches and filters (by date, client, status), and archives.
  */
 export default async function ConsultorHome() {
-  const proposals: StoredProposal[] = await storage.listProposals();
+  const proposals = await storage.listProposals();
+  const filas: FilaPropuesta[] = proposals.map((p) => {
+    const last = ultimaVersion(p);
+    return {
+      id: p.id,
+      cliente: p.cliente,
+      marca: p.marca ?? null,
+      createdAt: p.createdAt,
+      estado: estadoDe(p),
+      valor: last ? last.condicion.precioFinal : null,
+      moneda: last ? last.condicion.moneda : null,
+      vigencia: last ? last.condicion.vigencia : null,
+      token: last ? last.token : null,
+      versiones: p.sentVersions.length,
+      archivado: Boolean(p.archivado),
+    };
+  });
 
-  return (
-    <main className="container stack">
-      <div className="header-row">
-        <div>
-          <h1>Propuestas</h1>
-          <p className="muted">
-            Lista técnica (respaldo). La gestión vive en Ropofy.
-          </p>
-        </div>
-        <Link href="/consultor/nueva" className="btn btn-primary">
-          Nueva propuesta
-        </Link>
-      </div>
-
-      {proposals.length === 0 ? (
-        <div className="card card-muted">
-          <p className="muted" style={{ margin: 0 }}>
-            Aún no hay propuestas cargadas. Empieza con{" "}
-            <Link href="/consultor/nueva">Nueva propuesta</Link>.
-          </p>
-        </div>
-      ) : (
-        <ul className="list">
-          {proposals.map((p) => (
-            <li key={p.id} className="list-item-block">
-              <div className="header-row">
-                <div>
-                  <div>
-                    <span className="accent-dot" aria-hidden="true" />
-                    <strong>{p.cliente}</strong>
-                  </div>
-                  <div className="list-item-meta">
-                    <EditMarca id={p.id} marca={p.marca ?? null} />
-                  </div>
-                  <div className="list-item-meta">
-                    <code>{p.id}</code> · cargada {formatFecha(p.createdAt)}
-                  </div>
-                </div>
-                <div className="list-item-actions">
-                  <Link
-                    href={`/consultor/${p.id}/presentacion`}
-                    className="btn btn-secondary"
-                  >
-                    Ver presentación
-                  </Link>
-                  <Link
-                    href={`/consultor/${p.id}/editar`}
-                    className="btn btn-secondary"
-                  >
-                    Editar contenido
-                  </Link>
-                  <Link
-                    href={`/consultor/${p.id}/cotizar`}
-                    className="btn btn-secondary"
-                  >
-                    Preparar / enviar
-                  </Link>
-                </div>
-              </div>
-
-              {p.sentVersions.length > 0 && (
-                <ul className="versions">
-                  {p.sentVersions.map((v) => (
-                    <li key={v.token} className="version-row">
-                      <div className="list-item-meta">
-                        <strong>{v.version}</strong> · {formatFecha(v.sentAt)} ·{" "}
-                        {v.autor}
-                      </div>
-                      <div className="version-actions">
-                        <a href={`/p/${v.token}`} target="_blank" rel="noreferrer">
-                          /p/…{v.token.slice(-6)}
-                        </a>
-                        <CopyLink path={`/p/${v.token}`} />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
-  );
+  return <ProposalsTable filas={filas} />;
 }

@@ -252,6 +252,8 @@ export interface StoredProposal {
   createdAt: string;
   /** Workflow state: "borrador" until a version is sent, then "enviada". */
   estado: string;
+  /** Archived proposals are hidden from the active list (recoverable). */
+  archivado?: boolean;
   data: Proposal;
   /** Immutable sent versions, oldest first. */
   sentVersions: SentVersion[];
