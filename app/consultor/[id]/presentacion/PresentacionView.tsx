@@ -21,6 +21,10 @@ import {
 } from "react";
 import { formatPrice } from "@/lib/rules";
 import RadarMadurez from "@/components/RadarMadurez";
+import {
+  type ChecklistConsultor,
+  checklistTieneContenido,
+} from "@/lib/checklist";
 import { guardarInline, type EdicionInline } from "./actions";
 import { gradeForPlan } from "@/lib/grade";
 import {
@@ -60,6 +64,8 @@ interface Props {
   vm: PresentacionVM;
   /** Brand / trade name (or null); shown alongside the legal name. */
   marca?: string | null;
+  /** Consultant-only checklist (never shown to the client). */
+  checklist?: ChecklistConsultor;
   /** Test/override hook; defaults to planRecomendado. */
   initialPlan?: Plan;
 }
@@ -126,8 +132,16 @@ function Editable({
   );
 }
 
-export default function PresentacionView({ id, vm, marca, initialPlan }: Props) {
+export default function PresentacionView({
+  id,
+  vm,
+  marca,
+  checklist,
+  initialPlan,
+}: Props) {
   const [plan, setPlan] = useState<Plan>(initialPlan ?? vm.planRecomendado);
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const hayChecklist = !!checklist && checklistTieneContenido(checklist);
   const [showFloating, setShowFloating] = useState(false);
   const switcherRef = useRef<HTMLDivElement | null>(null);
 
@@ -320,6 +334,15 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
             >
               Funcionalidades
             </button>
+            {hayChecklist && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setChecklistOpen(true)}
+              >
+                Checklist
+              </button>
+            )}
             <a
               href={`/consultor/${id}/editar`}
               className="btn btn-secondary btn-sm"
@@ -329,6 +352,14 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
           </>
         )}
       </div>
+
+      {checklist && (
+        <ChecklistDrawer
+          open={checklistOpen}
+          checklist={checklist}
+          onCerrar={() => setChecklistOpen(false)}
+        />
+      )}
 
       <InventarioDrawer
         open={invOpen}
@@ -352,6 +383,100 @@ export default function PresentacionView({ id, vm, marca, initialPlan }: Props) 
     </div>
     </CortesiaContext.Provider>
     </EditContext.Provider>
+  );
+}
+
+// --- consultant checklist drawer (internal, never shown to the client) --
+
+function ChecklistDrawer({
+  open,
+  checklist,
+  onCerrar,
+}: {
+  open: boolean;
+  checklist: ChecklistConsultor;
+  onCerrar: () => void;
+}) {
+  const grafiaOk = checklist.grafiaEstado === "confirmada";
+  return (
+    <div className={`pv-drawer-wrap${open ? " open" : ""}`} aria-hidden={!open}>
+      <div className="pv-drawer-overlay" onClick={onCerrar} />
+      <aside className="pv-drawer" role="dialog" aria-label="Checklist del consultor">
+        <div className="pv-drawer-head">
+          <div>
+            <div className="pv-drawer-title">Checklist del consultor</div>
+            <div className="pv-drawer-sub">Interno · no lo ve el cliente</div>
+          </div>
+          <button type="button" className="pv-drawer-x" onClick={onCerrar}>
+            ✕
+          </button>
+        </div>
+
+        <div className="pv-drawer-body">
+          {checklist.grafiaEstado && (
+            <div className="pv-chk-grupo">
+              <div className="pv-drawer-banda">Grafía del nombre</div>
+              <div className={`pv-chk-grafia${grafiaOk ? " ok" : " alerta"}`}>
+                {grafiaOk ? "✓" : "⚠"} {checklist.grafiaEstado} ·{" "}
+                <b>{checklist.razonSocial}</b>
+                {checklist.modo && <span> · modo {checklist.modo}</span>}
+              </div>
+            </div>
+          )}
+
+          {checklist.nombresPorConfirmar.length > 0 && (
+            <div className="pv-chk-grupo">
+              <div className="pv-drawer-banda">
+                Nombres por confirmar ({checklist.nombresPorConfirmar.length})
+              </div>
+              <p className="pv-chk-nota">
+                La transcripción de la sesión pudo distorsionarlos: confírmalos
+                con el cliente.
+              </p>
+              {checklist.nombresPorConfirmar.map(([tipo, nombre], i) => (
+                <div className="pv-chk-fila" key={i}>
+                  <span className="pv-chk-nombre">{nombre}</span>
+                  <span className="pv-chk-tipo">{tipo}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {checklist.datosQueFaltan.length > 0 && (
+            <div className="pv-chk-grupo">
+              <div className="pv-drawer-banda">
+                Agenda de la próxima llamada ({checklist.datosQueFaltan.length})
+              </div>
+              <ul className="pv-chk-lista">
+                {checklist.datosQueFaltan.map((d, i) => (
+                  <li key={i}>{d}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {checklist.silencios.length > 0 && (
+            <div className="pv-chk-grupo">
+              <div className="pv-drawer-banda">
+                Silencios de la sesión ({checklist.silencios.length})
+              </div>
+              {checklist.silencios.map((s, i) => (
+                <div className="pv-chk-silencio" key={i}>
+                  <div className="pv-chk-mod">{s.modulo}</div>
+                  <div className="pv-chk-lectura">{s.lectura}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="pv-drawer-foot">
+          <button type="button" className="btn btn-primary btn-sm" onClick={onCerrar}>
+            Cerrar
+          </button>
+        </div>
+      </aside>
+    </div>
   );
 }
 

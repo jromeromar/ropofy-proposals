@@ -1,5 +1,6 @@
 import { storage } from "@/lib/storage";
 import { toPresentacionVM } from "@/lib/presentacionVM";
+import { checklistConsultor } from "@/lib/checklist";
 import PresentacionView from "./PresentacionView";
 import "./presentacion.css";
 
@@ -36,6 +37,7 @@ export default async function PresentacionPage({
       id={id}
       vm={toPresentacionVM(stored.data)}
       marca={stored.marca ?? null}
+      checklist={checklistConsultor(stored.data)}
     />
   );
 }
