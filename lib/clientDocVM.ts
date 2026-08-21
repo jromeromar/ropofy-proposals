@@ -42,6 +42,8 @@ export interface FugaVM {
 export interface MadurezVM {
   m: string;
   hoy: number;
+  /** Why the module sits where it does (client-facing reason). */
+  porQue: string | null;
   p: { "1": number; "2": number; "3": number };
 }
 
@@ -52,19 +54,27 @@ export interface ClientDocVM {
   titular: string;
   resumen: string;
   sentAt: string;
-  stats: Array<{ value: string; label: string }>;
+  /** Key figures for "Lo que entendimos": channel → figure + unit. */
+  stats: Array<{ canal: string; cifra: string; unidad: string }>;
+  /** Session stamps and estimated kickoff, for the summary card. */
+  sesiones: string[];
+  ventana: string | null;
+  datosQueFaltan: string[];
   asIs: AsIs;
   fugaDominante: FugaVM | null;
   fugasResto: FugaVM[];
   nota: { letra: LetraNota; puntos: number };
   /** Sector average maturity per module (0-4), or null. */
   benchmarkModulos: Record<string, number> | null;
+  /** Sector average as a 0-100 score, or null. */
+  puntosSector: number | null;
   madurez: MadurezVM[];
   bands: Band<ClientComp>[];
   integraciones: Array<[string, string, EtiquetaIntegracion]>;
   noAplican: Array<[string, string]>;
   advertencias: string[];
   planRecomendado: 1 | 2 | 3;
+  planRecomendadoPorQue: string | null;
   moneda: string;
   precioListaPorPlan: { "1": number; "2": number; "3": number };
   preciosFinales: { "1": number; "2": number; "3": number };
@@ -86,9 +96,11 @@ export interface ClientDocVM {
  * a declared cifra contributes no tile. The label is the unit that gives the
  * figure meaning, falling back to the channel name when no unit is given.
  */
-function extractStats(asIs: AsIs): Array<{ value: string; label: string }> {
+function extractStats(
+  asIs: AsIs,
+): Array<{ canal: string; cifra: string; unidad: string }> {
   const cols = [asIs.de_donde_llegan, asIs.por_donde_pasan, asIs.donde_queda];
-  const out: Array<{ value: string; label: string }> = [];
+  const out: Array<{ canal: string; cifra: string; unidad: string }> = [];
   for (const col of cols ?? []) {
     for (const fila of col ?? []) {
       const [canal, , extra] = fila;
@@ -96,7 +108,7 @@ function extractStats(asIs: AsIs): Array<{ value: string; label: string }> {
       const cifra = extra?.cifra == null ? "" : String(extra.cifra).trim();
       if (!cifra) continue;
       const unidad = extra?.unidad == null ? "" : String(extra.unidad).trim();
-      out.push({ value: cifra, label: unidad || canal });
+      out.push({ canal, cifra, unidad });
     }
   }
   return out;
@@ -144,6 +156,18 @@ export function toClientDocVM(doc: ClientDocument, sentAt: string): ClientDocVM 
   };
   const nota = doc.nota as { letra: LetraNota; puntos: number };
   const madurezRaw = (doc.madurez ?? []) as Array<Record<string, unknown>>;
+  const bench = benchmarkPorModulo(doc.benchmark);
+  const planReco = (doc.plan_recomendado ?? {}) as {
+    plan?: 1 | 2 | 3;
+    por_que?: string;
+  };
+  const ventanaRaw = (doc as { ventana?: unknown }).ventana;
+  // Sector average as a 0-100 score (7 modules × 4 levels = 28).
+  const puntosSector = bench
+    ? Math.round(
+        (Object.values(bench).reduce((a, b) => a + b, 0) / 28) * 100,
+      )
+    : null;
 
   return {
     cliente: doc.cliente,
@@ -152,14 +176,23 @@ export function toClientDocVM(doc: ClientDocument, sentAt: string): ClientDocVM 
     resumen: String(doc.resumen ?? ""),
     sentAt,
     stats: extractStats(doc.as_is as AsIs),
+    sesiones: ((doc as { sesiones?: unknown }).sesiones ?? []) as string[],
+    ventana:
+      typeof ventanaRaw === "string" && ventanaRaw.trim() !== ""
+        ? ventanaRaw
+        : null,
+    datosQueFaltan: ((doc as { datos_que_faltan?: unknown }).datos_que_faltan ??
+      []) as string[],
     asIs: doc.as_is as AsIs,
     fugaDominante: dominanteRaw ? toFugaVM(dominanteRaw) : null,
     fugasResto: restoRaw.map(toFugaVM),
     nota: { letra: nota.letra, puntos: nota.puntos },
-    benchmarkModulos: benchmarkPorModulo(doc.benchmark),
+    benchmarkModulos: bench,
+    puntosSector,
     madurez: madurezRaw.map((m) => ({
       m: String(m.m ?? ""),
       hoy: Number(m.hoy ?? 0),
+      porQue: (m.por_que as string | null) ?? null,
       p: m.p as { "1": number; "2": number; "3": number },
     })),
     bands: bandsFrom(comps),
@@ -169,6 +202,7 @@ export function toClientDocVM(doc: ClientDocument, sentAt: string): ClientDocVM 
     noAplican: (doc.no_aplican ?? []) as Array<[string, string]>,
     advertencias: (doc.advertencias ?? []) as string[],
     planRecomendado: ca.plan_seleccionado,
+    planRecomendadoPorQue: planReco.por_que ?? null,
     moneda: ca.moneda,
     precioListaPorPlan: cc.precio_por_plan ?? { "1": 0, "2": 0, "3": 0 },
     preciosFinales: ca.preciosFinales,
