@@ -50,6 +50,11 @@ export interface ProposalStorage {
   setMarca(id: string, marca: string | null): Promise<StoredProposal>;
   /** Archive / unarchive a proposal (hidden from the active list, kept). */
   setArchivado(id: string, archivado: boolean): Promise<StoredProposal>;
+  /** Manual status override ("rechazada" or null to clear). */
+  setEstadoManual(
+    id: string,
+    estado: "rechazada" | null,
+  ): Promise<StoredProposal>;
   /**
    * Replace the head proposal data IN PLACE — a live content correction (fix a
    * typo, a wrong figure). Keeps the version tag and the immutable sent-version
@@ -245,6 +250,19 @@ class MemoryFileStorage implements ProposalStorage {
     return existing;
   }
 
+  async setEstadoManual(
+    id: string,
+    estado: "rechazada" | null,
+  ): Promise<StoredProposal> {
+    await this.load();
+    const existing = this.map.get(id);
+    if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
+    existing.estadoManual = estado;
+    this.map.set(id, existing);
+    await this.persist();
+    return existing;
+  }
+
   async updateProposalData(id: string, data: Proposal): Promise<StoredProposal> {
     await this.load();
     const existing = this.map.get(id);
@@ -416,6 +434,17 @@ class KvStorage implements ProposalStorage {
     return existing;
   }
 
+  async setEstadoManual(
+    id: string,
+    estado: "rechazada" | null,
+  ): Promise<StoredProposal> {
+    const existing = await this.getProposal(id);
+    if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
+    existing.estadoManual = estado;
+    await this.redis.set(kvKey(id), existing);
+    return existing;
+  }
+
   async updateProposalData(id: string, data: Proposal): Promise<StoredProposal> {
     const existing = await this.getProposal(id);
     if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
@@ -541,6 +570,7 @@ export const storage: ProposalStorage = {
   saveProposal: (data, marca) => getStorage().saveProposal(data, marca),
   setMarca: (id, marca) => getStorage().setMarca(id, marca),
   setArchivado: (id, archivado) => getStorage().setArchivado(id, archivado),
+  setEstadoManual: (id, estado) => getStorage().setEstadoManual(id, estado),
   updateProposalData: (id, data) => getStorage().updateProposalData(id, data),
   getProposal: (id) => getStorage().getProposal(id),
   listProposals: () => getStorage().listProposals(),

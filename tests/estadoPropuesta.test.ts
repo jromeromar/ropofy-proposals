@@ -47,7 +47,7 @@ describe("estadoDe", () => {
     expect(estadoDe({ sentVersions: [v] }, now)).toBe("aceptada");
   });
 
-  it("expirada cuando la vigencia del descuento ya pasó", () => {
+  it("vencida cuando la vigencia (plazo) ya pasó y no aceptó", () => {
     const v = sent({
       condicion: {
         ...sent().condicion,
@@ -55,14 +55,27 @@ describe("estadoDe", () => {
         vigencia: "2026-01-01T00:00:00.000Z",
       },
     });
-    expect(estadoDe({ sentVersions: [v] }, now)).toBe("expirada");
+    expect(estadoDe({ sentVersions: [v] }, now)).toBe("vencida");
   });
 
-  it("aceptada gana sobre expirada", () => {
+  it("aceptada gana sobre vencida", () => {
     const vieja = sent({
       condicion: { ...sent().condicion, descuentoPct: 15, vigencia: "2026-01-01T00:00:00.000Z" },
     });
     const aceptada = sent({ version: "v2", estado: "aceptada" });
     expect(estadoDe({ sentVersions: [vieja, aceptada] }, now)).toBe("aceptada");
+  });
+
+  it("rechazada por override manual (si no hay aceptación)", () => {
+    expect(
+      estadoDe({ sentVersions: [sent()], estadoManual: "rechazada" }, now),
+    ).toBe("rechazada");
+  });
+
+  it("aceptada gana sobre el override de rechazada", () => {
+    const aceptada = sent({ estado: "aceptada" });
+    expect(
+      estadoDe({ sentVersions: [aceptada], estadoManual: "rechazada" }, now),
+    ).toBe("aceptada");
   });
 });

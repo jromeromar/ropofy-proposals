@@ -25,8 +25,18 @@ export default async function ConsultorHome() {
       moneda: last ? last.condicion.moneda : null,
       vigencia: last ? last.condicion.vigencia : null,
       token: last ? last.token : null,
-      versiones: p.sentVersions.length,
       archivado: Boolean(p.archivado),
+      // Slim, client-safe per-version list (no internal `motivo`).
+      versiones: p.sentVersions.map((v) => ({
+        version: v.version,
+        sentAt: v.sentAt,
+        plan: v.plan,
+        valor: v.condicion.precioFinal,
+        moneda: v.condicion.moneda,
+        vigencia: v.condicion.vigencia,
+        token: v.token,
+        aceptada: v.estado === "aceptada" || v.acceptance != null,
+      })),
     };
   });
 
