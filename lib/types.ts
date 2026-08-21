@@ -254,6 +254,8 @@ export interface StoredProposal {
   estado: string;
   /** Archived proposals are hidden from the active list (recoverable). */
   archivado?: boolean;
+  /** Manual status override; only "rechazada" (declined) is set by hand. */
+  estadoManual?: "rechazada" | null;
   data: Proposal;
   /** Immutable sent versions, oldest first. */
   sentVersions: SentVersion[];

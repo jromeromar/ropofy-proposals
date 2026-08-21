@@ -1,40 +1,45 @@
 /**
- * Derived proposal status for the consultant list — the one place this app
- * keeps light "estado" control. It is DERIVED from the immutable sent versions
- * and acceptance, never a free-floating field:
+ * Derived proposal status for the consultant desk — the one place this app
+ * keeps light "estado" control. Mostly DERIVED from the immutable sent versions
+ * and acceptance; the only manual override is "rechazada" (the client said no):
  *   borrador  → nothing sent yet
+ *   rechazada → the consultant marked it declined (manual override)
  *   aceptada  → some sent version was accepted
- *   expirada  → the latest sent version carried a discount whose vigencia passed
+ *   vencida   → the latest sent version's vigencia (deadline) passed, unaccepted
  *   enviada   → sent and still live (pending the client's decision)
  */
 
-import type { StoredProposal, SentVersion } from "./types";
+import type { StoredProposal } from "./types";
 
-export type EstadoPropuesta = "borrador" | "enviada" | "aceptada" | "expirada";
+export type EstadoPropuesta =
+  | "borrador"
+  | "enviada"
+  | "aceptada"
+  | "vencida"
+  | "rechazada";
 
 export const ESTADO_LABEL: Record<EstadoPropuesta, string> = {
   borrador: "Borrador",
   enviada: "Enviada",
   aceptada: "Aceptada",
-  expirada: "Expirada",
+  vencida: "Vencida",
+  rechazada: "Rechazada",
 };
 
 export function estadoDe(
-  p: Pick<StoredProposal, "sentVersions">,
+  p: Pick<StoredProposal, "sentVersions" | "estadoManual">,
   now: Date = new Date(),
 ): EstadoPropuesta {
   const sv = p.sentVersions ?? [];
-  if (sv.length === 0) return "borrador";
   if (sv.some((v) => v.estado === "aceptada" || v.acceptance != null))
     return "aceptada";
+  // Manual "declined" override (only meaningful once nothing is accepted).
+  if (p.estadoManual === "rechazada") return "rechazada";
+  if (sv.length === 0) return "borrador";
   const last = sv[sv.length - 1];
   const c = last.condicion;
-  if (
-    c?.descuentoPct != null &&
-    c?.vigencia &&
-    new Date(c.vigencia).getTime() <= now.getTime()
-  ) {
-    return "expirada";
+  if (c?.vigencia && new Date(c.vigencia).getTime() <= now.getTime()) {
+    return "vencida";
   }
   return "enviada";
 }
@@ -42,7 +47,7 @@ export function estadoDe(
 /** The latest sent version (or null), for value / valid-until / share link. */
 export function ultimaVersion(
   p: Pick<StoredProposal, "sentVersions">,
-): SentVersion | null {
+) {
   const sv = p.sentVersions ?? [];
   return sv.length ? sv[sv.length - 1] : null;
 }
