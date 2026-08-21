@@ -293,14 +293,50 @@ function Entendimos({ vm }: { vm: ClientDocVM }) {
       <div className="cd-two-col">
         <div className="cd-prose">
           <p>{vm.resumen}</p>
+          {vm.asIs.de_donde_llegan.length > 0 && (
+            <div className="cd-pills">
+              {vm.asIs.de_donde_llegan.map(([canal], i) => (
+                <span className="cd-pill" key={i}>
+                  {canal}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="cd-figures">
           {vm.stats.map((s, i) => (
             <div className="cd-figure-row" key={i}>
-              <span className="cd-figure-label">{s.label}</span>
-              <span className="cd-figure-value">{s.value}</span>
+              <span className="cd-figure-label">{s.canal}</span>
+              <span className="cd-figure-value">
+                {s.cifra}
+                {s.unidad ? ` ${s.unidad}` : ""}
+              </span>
             </div>
           ))}
+          {vm.sesiones.length > 0 && (
+            <div className="cd-figure-row">
+              <span className="cd-figure-label">Sesión de diagnóstico</span>
+              <span className="cd-figure-value cd-figure-sm">
+                {vm.sesiones.join(" · ")}
+              </span>
+            </div>
+          )}
+          {vm.ventana && (
+            <div className="cd-figure-row">
+              <span className="cd-figure-label">Arranque estimado</span>
+              <span className="cd-figure-value cd-figure-sm">
+                {vm.ventana} semanas desde la firma
+              </span>
+            </div>
+          )}
+          {vm.datosQueFaltan.length > 0 && (
+            <div className="cd-conflicto">
+              <b>Lo que quedó por capturar — </b>
+              {vm.datosQueFaltan.length} datos afinan esta propuesta en la
+              próxima llamada. Los que más pesan:{" "}
+              {vm.datosQueFaltan.slice(0, 3).join(" · ")}
+            </div>
+          )}
         </div>
       </div>
     </section>
@@ -376,7 +412,12 @@ function FugaCard({
   return (
     <div className={`${cls}${dominante ? " dominante" : ""}`}>
       <h3 className="cd-fuga-titulo">{f.titulo}</h3>
-      {dominante && f.cifra && <div className="cd-fuga-cifra">{f.cifra}</div>}
+      {f.cifra &&
+        (f.cifra.length <= 24 ? (
+          <div className="cd-fuga-cifra">{f.cifra}</div>
+        ) : (
+          <div className="cd-fuga-cuant">{f.cifra}</div>
+        ))}
       {f.texto && <p className="cd-fuga-texto">{f.texto}</p>}
       {f.evidencia && (
         <blockquote className="cd-fuga-quote">
@@ -528,7 +569,12 @@ function Diagnostico({ vm }: { vm: ClientDocVM }) {
         <div className="cd-score">
           <div className="cd-score-cap">Nota de madurez</div>
           <div className="cd-score-letra">{vm.nota.letra}</div>
-          <div className="cd-score-pts">{vm.nota.puntos}/100</div>
+          <div className="cd-score-pts">
+            {vm.nota.puntos}/100
+            {vm.puntosSector != null && (
+              <> · promedio del sector: {vm.puntosSector}/100</>
+            )}
+          </div>
           <div className="cd-escala">
             {ESCALA_NOTA.map((e) => (
               <div key={e.g} className={e.g === vm.nota.letra ? "act" : ""}>
@@ -536,6 +582,11 @@ function Diagnostico({ vm }: { vm: ClientDocVM }) {
                 <div className="r">{e.r}</div>
               </div>
             ))}
+          </div>
+          <div className="cd-escala-que">
+            Cada módulo se califica de 1 a 4: <b>1 manual</b> · <b>2 cubierto</b>{" "}
+            · <b>3 sistematizado</b> · <b>4 se anticipa</b>. La nota es la suma
+            de los siete módulos sobre el máximo.
           </div>
         </div>
         {vm.benchmarkModulos ? (
@@ -567,20 +618,32 @@ function Diagnostico({ vm }: { vm: ClientDocVM }) {
         )}
       </div>
 
-      {/* Per-module detail (salto bars) below the score + radar. */}
-      <div className="cd-madurez cd-madurez-detalle">
+      {/* Per-module detail: level + the reason behind it. */}
+      <div className="cd-madtabla">
         {vm.madurez.map((m, i) => (
-          <MadurezRow
-            key={i}
-            nombre={m.m}
-            hoy={m.hoy}
-            sector={vm.benchmarkModulos?.[m.m]}
-          />
+          <div className="cd-madtabla-row" key={i}>
+            <div className="cd-madtabla-mod">{m.m}</div>
+            <div className="cd-nivel" aria-label={`Nivel ${m.hoy} de 4`}>
+              {[0, 1, 2, 3].map((seg) => (
+                <span
+                  key={seg}
+                  className={seg < m.hoy ? "cd-nivel-i on" : "cd-nivel-i"}
+                />
+              ))}
+            </div>
+            <div className="cd-madtabla-porque">{m.porQue ?? ""}</div>
+          </div>
         ))}
-        {vm.benchmarkModulos && (
-          <p className="cd-bar-legend">La línea marca el promedio del sector.</p>
-        )}
       </div>
+
+      {vm.planRecomendadoPorQue && (
+        <div className="cd-reco">
+          <h3 className="cd-reco-titulo">
+            Recomendación: Plan {PLAN_LABEL[vm.planRecomendado]}
+          </h3>
+          <p>{vm.planRecomendadoPorQue}</p>
+        </div>
+      )}
     </section>
   );
 }

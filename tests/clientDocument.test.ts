@@ -93,14 +93,17 @@ describe("marca (nombre comercial) en el documento del cliente", () => {
 });
 
 describe("as_is stats — cifra explícita, nunca escarbada", () => {
-  it("toma la cifra declarada y su unidad como etiqueta", () => {
+  it("toma la cifra declarada, su unidad y el canal", () => {
     const { doc } = buildDoc(15);
     const vm = toClientDocVM(doc, "2026-08-14T15:00:00.000Z");
-    expect(vm.stats).toContainEqual({ value: "306", label: "leads/mes" });
-    expect(vm.stats).toContainEqual({
-      value: "30",
-      label: "conversaciones/día",
-    });
+    expect(
+      vm.stats.some((s) => s.cifra === "306" && s.unidad === "leads/mes"),
+    ).toBe(true);
+    expect(
+      vm.stats.some(
+        (s) => s.cifra === "30" && s.unidad === "conversaciones/día",
+      ),
+    ).toBe(true);
   });
 
   it("una fila sin cifra no aporta ninguna estadística (no escarba prosa)", () => {
@@ -121,11 +124,11 @@ describe("as_is stats — cifra explícita, nunca escarbada", () => {
     const vm = toClientDocVM(doc, "2026-08-14T15:00:00.000Z");
     // No phantom values from those prose numbers.
     for (const bad of ["4", "3"]) {
-      expect(vm.stats.some((s) => s.value === bad)).toBe(false);
+      expect(vm.stats.some((s) => s.cifra === bad)).toBe(false);
     }
-    // And no stat labeled with those channels (they declared no cifra).
+    // And no stat for those channels (they declared no cifra).
     for (const canal of ["Pedix", "Comanda impresa"]) {
-      expect(vm.stats.some((s) => s.label === canal)).toBe(false);
+      expect(vm.stats.some((s) => s.canal === canal)).toBe(false);
     }
   });
 });
