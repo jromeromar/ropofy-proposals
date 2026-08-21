@@ -1141,6 +1141,84 @@
   }
 }
 
+/* Checklist del consultor (interno) */
+.pv-chk-grupo {
+  margin-top: 16px;
+}
+.pv-chk-grafia {
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+.pv-chk-grafia.ok {
+  background: var(--color-primary-tinte);
+  color: var(--color-primary-dark);
+}
+.pv-chk-grafia.alerta {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+.pv-chk-nota {
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+  margin: 4px 0 8px;
+  line-height: 1.4;
+}
+.pv-chk-fila {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--color-gris-claro);
+}
+.pv-chk-fila:last-child {
+  border-bottom: none;
+}
+.pv-chk-nombre {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+.pv-chk-tipo {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.pv-chk-lista {
+  margin: 0;
+  padding-left: 18px;
+}
+.pv-chk-lista li {
+  font-size: 12.5px;
+  color: #3d4560;
+  margin-bottom: 5px;
+  line-height: 1.45;
+}
+.pv-chk-silencio {
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--color-gris-claro);
+}
+.pv-chk-silencio:last-child {
+  border-bottom: none;
+}
+.pv-chk-mod {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-primary-dark);
+}
+.pv-chk-lectura {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
 /* --- Print (A4) -------------------------------------------------------- */
 
 @media print {
