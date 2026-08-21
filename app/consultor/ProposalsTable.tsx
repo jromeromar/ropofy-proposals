@@ -15,7 +15,7 @@ import { PLAN_LABEL } from "@/lib/mapLayout";
 import { ESTADO_LABEL, type EstadoPropuesta } from "@/lib/estadoPropuesta";
 import CopyLink from "./CopyLink";
 import EditMarca from "./EditMarca";
-import { archivarPropuesta, marcarEstado } from "./actions";
+import { archivarPropuesta, marcarEstado, cerrarSesion } from "./actions";
 
 interface VersionFila {
   version: string;
@@ -64,7 +64,13 @@ function fmtFecha(iso: string): string {
   }
 }
 
-export default function ProposalsTable({ filas }: { filas: FilaPropuesta[] }) {
+export default function ProposalsTable({
+  filas,
+  usuario,
+}: {
+  filas: FilaPropuesta[];
+  usuario?: string | null;
+}) {
   const router = useRouter();
   const [tab, setTab] = useState<"activas" | "archivadas">("activas");
   const [q, setQ] = useState("");
@@ -180,9 +186,21 @@ export default function ProposalsTable({ filas }: { filas: FilaPropuesta[] }) {
             Estado, búsqueda y archivo. La gestión completa vive en Ropofy.
           </p>
         </div>
-        <Link href="/consultor/nueva" className="btn btn-primary">
-          Nueva propuesta
-        </Link>
+        <div className="list-item-actions">
+          {usuario && (
+            <form action={cerrarSesion} className="pr-sesion">
+              <span className="pr-usuario" title={usuario}>
+                {usuario}
+              </span>
+              <button type="submit" className="pr-mini">
+                Salir
+              </button>
+            </form>
+          )}
+          <Link href="/consultor/nueva" className="btn btn-primary">
+            Nueva propuesta
+          </Link>
+        </div>
       </div>
 
       <div className="pr-kpis">
