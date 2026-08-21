@@ -33,6 +33,23 @@
   margin-top: 2px;
 }
 
+/* Session (sign out) */
+.pr-sesion {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.pr-usuario {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Bar: tabs + filters share a row on wide screens */
 .pr-barra {
   display: flex;

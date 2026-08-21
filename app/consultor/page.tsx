@@ -1,5 +1,6 @@
 import { storage } from "@/lib/storage";
 import { estadoDe, ultimaVersion } from "@/lib/estadoPropuesta";
+import { auth } from "@/auth";
 import ProposalsTable, { type FilaPropuesta } from "./ProposalsTable";
 import "./consultor.css";
 
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic";
  * searches and filters (by date, client, status), and archives.
  */
 export default async function ConsultorHome() {
+  const session = await auth();
   const proposals = await storage.listProposals();
   const filas: FilaPropuesta[] = proposals.map((p) => {
     const last = ultimaVersion(p);
@@ -40,5 +42,7 @@ export default async function ConsultorHome() {
     };
   });
 
-  return <ProposalsTable filas={filas} />;
+  return (
+    <ProposalsTable filas={filas} usuario={session?.user?.email ?? null} />
+  );
 }

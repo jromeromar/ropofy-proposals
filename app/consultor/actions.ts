@@ -1,8 +1,13 @@
 "use server";
 
-/** Consultant desk actions: archive and manual status override. */
+/** Consultant desk actions: archive, manual status override, sign out. */
 
 import { storage } from "@/lib/storage";
+import { signOut } from "@/auth";
+
+export async function cerrarSesion(): Promise<void> {
+  await signOut({ redirectTo: "/api/auth/signin" });
+}
 
 export async function archivarPropuesta(
   id: string,
