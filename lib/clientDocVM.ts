@@ -92,9 +92,11 @@ function extractStats(asIs: AsIs): Array<{ value: string; label: string }> {
   for (const col of cols ?? []) {
     for (const fila of col ?? []) {
       const [canal, , extra] = fila;
-      const cifra = extra?.cifra?.trim();
+      // cifra may be text or a number; unidad is optional text.
+      const cifra = extra?.cifra == null ? "" : String(extra.cifra).trim();
       if (!cifra) continue;
-      out.push({ value: cifra, label: extra?.unidad?.trim() || canal });
+      const unidad = extra?.unidad == null ? "" : String(extra.unidad).trim();
+      out.push({ value: cifra, label: unidad || canal });
     }
   }
   return out;

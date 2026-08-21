@@ -85,7 +85,7 @@ export default function EditForm({
     for (const col of Object.keys(AS_IS_TITULOS) as AsIsColKey[]) {
       out.as_is[col] = out.as_is[col].map((fila) => {
         const extra = fila[2] as AsIsCifra | undefined;
-        const cifra = extra?.cifra?.trim() ?? "";
+        const cifra = extra?.cifra == null ? "" : String(extra.cifra).trim();
         if (!cifra) return [fila[0], fila[1]];
         const unidad = extra?.unidad?.trim();
         return unidad ? [fila[0], fila[1], { cifra, unidad }] : [fila[0], fila[1], { cifra }];
@@ -202,7 +202,7 @@ export default function EditForm({
                   <Campo label="Cifra">
                     <input
                       type="text"
-                      value={extra?.cifra ?? ""}
+                      value={extra?.cifra == null ? "" : String(extra.cifra)}
                       placeholder="—"
                       onChange={(e) =>
                         edit((d) => {

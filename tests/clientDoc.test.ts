@@ -138,6 +138,22 @@ describe("documento del cliente — bloque de precio", () => {
   });
 });
 
+describe("documento del cliente — radar y asentir", () => {
+  const html = renderDoc({
+    descuentoPct: null,
+    vigencia: null,
+    nowIso: "2026-08-20T00:00:00.000Z",
+  });
+  it("dibuja el radar de madurez (svg) vs. el promedio del sector", () => {
+    expect(html).toContain("Radar de madurez");
+    expect(html).toContain("<polygon");
+  });
+  it("ofrece confirmar cada fuga (asentir) con comentario", () => {
+    expect(html).toContain("¿Le pasa esto?");
+    expect(html).toContain("cd-asentir");
+  });
+});
+
 describe("documento del cliente — marca", () => {
   it("muestra «Marca (Razón social)» cuando hay marca", () => {
     const data = loadFixture();

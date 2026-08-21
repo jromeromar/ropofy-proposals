@@ -171,7 +171,8 @@ function isAsIsFila(v: unknown): boolean {
   if (v.length === 2) return true;
   const extra = v[2];
   if (!isPlainObject(extra)) return false;
-  if (!isString(extra.cifra)) return false;
+  // `cifra` may arrive as text ("306") or a number (306) from the pipeline.
+  if (!isString(extra.cifra) && typeof extra.cifra !== "number") return false;
   if ("unidad" in extra && extra.unidad != null && !isString(extra.unidad))
     return false;
   return true;

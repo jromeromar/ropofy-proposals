@@ -27,8 +27,11 @@ export type Par = [string, string];
  * a row without a clear figure simply carries no cifra (and shows no stat).
  */
 export interface AsIsCifra {
-  /** The number to highlight, verbatim from the note (e.g. "306", "95%"). */
-  cifra: string;
+  /**
+   * The number to highlight (e.g. "306", "95%", or 306). The pipeline may send
+   * it as text or as a number; the renderer coerces to a string.
+   */
+  cifra: string | number;
   /** Unit that gives the figure meaning (e.g. "leads/mes"). */
   unidad?: string;
 }
