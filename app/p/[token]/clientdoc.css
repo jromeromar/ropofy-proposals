@@ -431,6 +431,59 @@
   font-size: 12.5px;
   color: var(--color-text-secondary);
 }
+.cd-asentir {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.cd-asentir-btn {
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 13px;
+  border: 1.5px solid var(--color-primary);
+  background: #fff;
+  color: var(--color-primary);
+  border-radius: 999px;
+  padding: 6px 16px;
+  cursor: pointer;
+}
+.cd-asentir-btn.si {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-ink);
+}
+.cd-asentir-coment-link {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.cd-asentir-coment {
+  width: 100%;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--color-primary-tinte2);
+  border-radius: 10px;
+  resize: vertical;
+}
+@media print {
+  .cd-asentir-btn,
+  .cd-asentir-coment-link {
+    display: none;
+  }
+  .cd-asentir-btn.si {
+    display: inline-block;
+    border: none;
+    padding-left: 0;
+  }
+}
 
 /* --- 5. El diagnóstico (caja de nota + salto) -------------------------- */
 
@@ -501,6 +554,52 @@
 }
 .cd-escala div.act .r {
   color: var(--color-primary);
+}
+
+/* radar de madurez vs. sector */
+.cd-radar-caja {
+  border: 1.5px solid var(--color-primary-tinte2);
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: #fff;
+  display: grid;
+  gap: 12px;
+}
+@media (min-width: 620px) {
+  .cd-radar-caja {
+    grid-template-columns: minmax(220px, 300px) 1fr;
+    align-items: center;
+  }
+}
+.cd-radar-leg {
+  display: grid;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.cd-radar-leg > div {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.cd-radar-leg i {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+.cd-radar-leg b {
+  color: var(--color-ink);
+  font-weight: 800;
+}
+.cd-radar-leg small {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+.cd-madurez-detalle {
+  margin-top: 22px;
 }
 
 /* barras de madurez / salto (compartidas por 5 y 9) */

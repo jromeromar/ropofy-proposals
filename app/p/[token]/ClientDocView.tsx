@@ -8,7 +8,7 @@
  * routes, no discount controls, no internal data.
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { formatPrice } from "@/lib/rules";
 import { gradeForPlan } from "@/lib/grade";
 import { bloquePrecioEfectivo } from "@/lib/condition";
@@ -16,6 +16,7 @@ import { formatVigencia } from "@/lib/clientDocument";
 import { isLocked, esCortesia, PLAN_RANK, PLAN_LABEL } from "@/lib/mapLayout";
 import type { ClientDocVM, ClientComp, FugaVM } from "@/lib/clientDocVM";
 import type { Acceptance, Visibilidad, AsIsFila } from "@/lib/types";
+import RadarMadurez from "@/components/RadarMadurez";
 import { aceptarPropuesta } from "./actions";
 import { useTelemetria } from "./useTelemetria";
 
@@ -165,7 +166,7 @@ export default function ClientDocView({
       <Portada vm={vm} />
       <Entendimos vm={vm} />
       <SistemaHoy vm={vm} />
-      <Fugas vm={vm} />
+      <Fugas vm={vm} onSenal={tel.observacionEscrita} />
       <Diagnostico vm={vm} />
       <ClaveDeLectura />
       <PlanoCompleto vm={vm} plan={plan} />
@@ -347,13 +348,31 @@ function SistemaHoy({ vm }: { vm: ClientDocVM }) {
 
 // --- 4. Las fugas -------------------------------------------------------
 
-function FugaCard({ f, dominante }: { f: FugaVM; dominante?: boolean }) {
+function FugaCard({
+  f,
+  dominante,
+  onSenal,
+}: {
+  f: FugaVM;
+  dominante?: boolean;
+  onSenal?: () => void;
+}) {
   const cls =
     f.estado === "mitigable"
       ? "cd-fuga mitigable"
       : f.estado === "fuera_de_alcance"
         ? "cd-fuga fuera"
         : "cd-fuga";
+  const [deAcuerdo, setDeAcuerdo] = useState(false);
+  const [comentando, setComentando] = useState(false);
+  const [comentario, setComentario] = useState("");
+  const senalado = useRef(false);
+  function senal() {
+    if (!senalado.current) {
+      senalado.current = true;
+      onSenal?.();
+    }
+  }
   return (
     <div className={`${cls}${dominante ? " dominante" : ""}`}>
       <h3 className="cd-fuga-titulo">{f.titulo}</h3>
@@ -375,20 +394,56 @@ function FugaCard({ f, dominante }: { f: FugaVM; dominante?: boolean }) {
           Esta la corrige su equipo; mientras exista, afecta las mediciones.
         </p>
       )}
+      <div className="cd-asentir">
+        <button
+          type="button"
+          className={`cd-asentir-btn${deAcuerdo ? " si" : ""}`}
+          aria-pressed={deAcuerdo}
+          onClick={() => {
+            setDeAcuerdo((v) => !v);
+            senal();
+          }}
+        >
+          {deAcuerdo ? "✓ Sí, así nos pasa" : "¿Le pasa esto?"}
+        </button>
+        {!comentando && (
+          <button
+            type="button"
+            className="cd-asentir-coment-link"
+            onClick={() => setComentando(true)}
+          >
+            Comentar
+          </button>
+        )}
+        {comentando && (
+          <textarea
+            className="cd-asentir-coment"
+            value={comentario}
+            placeholder="Un matiz, un detalle que agregar…"
+            rows={2}
+            onChange={(e) => {
+              if (comentario === "" && e.target.value !== "") senal();
+              setComentario(e.target.value);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
 
-function Fugas({ vm }: { vm: ClientDocVM }) {
+function Fugas({ vm, onSenal }: { vm: ClientDocVM; onSenal?: () => void }) {
   return (
     <section className="cd-section">
-      <SecHead n={3} small="Dónde se está yendo el dinero hoy">
+      <SecHead n={3} small="Confírmelas: dígannos si le pasan">
         Las fugas
       </SecHead>
-      {vm.fugaDominante && <FugaCard f={vm.fugaDominante} dominante />}
+      {vm.fugaDominante && (
+        <FugaCard f={vm.fugaDominante} dominante onSenal={onSenal} />
+      )}
       <div className="cd-fugas-grid">
         {vm.fugasResto.map((f, i) => (
-          <FugaCard f={f} key={i} />
+          <FugaCard f={f} key={i} onSenal={onSenal} />
         ))}
       </div>
     </section>
@@ -459,6 +514,11 @@ function MadurezRow({
 }
 
 function Diagnostico({ vm }: { vm: ClientDocVM }) {
+  const ejes = vm.madurez.map((m) => ({
+    m: m.m,
+    hoy: m.hoy,
+    sector: vm.benchmarkModulos?.[m.m] ?? null,
+  }));
   return (
     <section className="cd-section">
       <SecHead n={4} small="Dónde está su operación comercial hoy">
@@ -478,21 +538,48 @@ function Diagnostico({ vm }: { vm: ClientDocVM }) {
             ))}
           </div>
         </div>
-        <div className="cd-madurez">
-          {vm.madurez.map((m, i) => (
-            <MadurezRow
-              key={i}
-              nombre={m.m}
-              hoy={m.hoy}
-              sector={vm.benchmarkModulos?.[m.m]}
-            />
-          ))}
-          {vm.benchmarkModulos && (
-            <p className="cd-bar-legend">
-              La línea marca el promedio del sector.
-            </p>
-          )}
-        </div>
+        {vm.benchmarkModulos ? (
+          <div className="cd-radar-caja">
+            <RadarMadurez ejes={ejes} />
+            <div className="cd-radar-leg">
+              <div>
+                <i style={{ background: "#708287" }} aria-hidden="true" />
+                <span>
+                  <b>Promedio del sector</b>
+                  <small>pymes comparables</small>
+                </span>
+              </div>
+              <div>
+                <i style={{ background: "#485CC7" }} aria-hidden="true" />
+                <span>
+                  <b>Su operación hoy</b>
+                  <small>lo que nos contaron en la sesión</small>
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="cd-madurez">
+            {vm.madurez.map((m, i) => (
+              <MadurezRow key={i} nombre={m.m} hoy={m.hoy} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Per-module detail (salto bars) below the score + radar. */}
+      <div className="cd-madurez cd-madurez-detalle">
+        {vm.madurez.map((m, i) => (
+          <MadurezRow
+            key={i}
+            nombre={m.m}
+            hoy={m.hoy}
+            sector={vm.benchmarkModulos?.[m.m]}
+          />
+        ))}
+        {vm.benchmarkModulos && (
+          <p className="cd-bar-legend">La línea marca el promedio del sector.</p>
+        )}
       </div>
     </section>
   );

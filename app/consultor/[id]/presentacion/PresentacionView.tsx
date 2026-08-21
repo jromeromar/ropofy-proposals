@@ -20,6 +20,7 @@ import {
   type ReactNode,
 } from "react";
 import { formatPrice } from "@/lib/rules";
+import RadarMadurez from "@/components/RadarMadurez";
 import { guardarInline, type EdicionInline } from "./actions";
 import { gradeForPlan } from "@/lib/grade";
 import {
@@ -631,9 +632,11 @@ function extractStats(asIs: AsIs): { value: string; label: string }[] {
   for (const col of cols) {
     for (const fila of col) {
       const [canal, , extra] = fila;
-      const cifra = extra?.cifra?.trim();
+      // cifra may be text or a number; unidad is optional text.
+      const cifra = extra?.cifra == null ? "" : String(extra.cifra).trim();
       if (!cifra) continue;
-      out.push({ value: cifra, label: extra?.unidad?.trim() || canal });
+      const unidad = extra?.unidad == null ? "" : String(extra.unidad).trim();
+      out.push({ value: cifra, label: unidad || canal });
     }
   }
   return out;
@@ -722,23 +725,51 @@ function Fugas({ vm }: { vm: PresentacionVM }) {
 // --- 4. La nota ---------------------------------------------------------
 
 function LaNota({ vm }: { vm: PresentacionVM }) {
+  const ejes = vm.madurez.map((m) => ({
+    m: m.m,
+    hoy: m.hoy,
+    sector: vm.benchmarkModulos?.[m.m] ?? null,
+  }));
   return (
     <section className="pv-section">
       <SecHead n={3} small="Dónde está la operación comercial hoy">
         El diagnóstico
       </SecHead>
-      <div className="pv-score">
-        <div className="pv-score-cap">Nota de madurez</div>
-        <div className="pv-score-letra">{vm.nota.letra}</div>
-        <div className="pv-score-pts">{vm.nota.puntos}/100</div>
-        <div className="pv-escala">
-          {ESCALA_NOTA.map((e) => (
-            <div key={e.g} className={e.g === vm.nota.letra ? "act" : ""}>
-              <div className="g">{e.g}</div>
-              <div className="r">{e.r}</div>
-            </div>
-          ))}
+      <div className="pv-diag-wrap">
+        <div className="pv-score">
+          <div className="pv-score-cap">Nota de madurez</div>
+          <div className="pv-score-letra">{vm.nota.letra}</div>
+          <div className="pv-score-pts">{vm.nota.puntos}/100</div>
+          <div className="pv-escala">
+            {ESCALA_NOTA.map((e) => (
+              <div key={e.g} className={e.g === vm.nota.letra ? "act" : ""}>
+                <div className="g">{e.g}</div>
+                <div className="r">{e.r}</div>
+              </div>
+            ))}
+          </div>
         </div>
+        {vm.benchmarkModulos && (
+          <div className="pv-radar-caja">
+            <RadarMadurez ejes={ejes} />
+            <div className="pv-radar-leg">
+              <div>
+                <i style={{ background: "#708287" }} aria-hidden="true" />
+                <span>
+                  <b>Promedio del sector</b>
+                  <small>pymes comparables</small>
+                </span>
+              </div>
+              <div>
+                <i style={{ background: "#485CC7" }} aria-hidden="true" />
+                <span>
+                  <b>La operación hoy</b>
+                  <small>lo que nos contaron</small>
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
