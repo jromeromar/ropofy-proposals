@@ -14,6 +14,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
 import { Redis } from "@upstash/redis";
+import { razonSocialDe, marcaDefaultDe } from "./identidad";
 import type {
   Proposal,
   StoredProposal,
@@ -123,8 +124,10 @@ function newRecord(
 ): StoredProposal {
   return {
     id,
-    cliente: data.cliente,
-    marca: marca ?? null,
+    // Legal name (razon_social when the pipeline sends it, else cliente).
+    cliente: razonSocialDe(data),
+    // Manual marca wins; otherwise default to the pipeline's brand (if any).
+    marca: marca ?? marcaDefaultDe(data),
     version,
     createdAt: nowIso(),
     estado: "borrador",
@@ -235,7 +238,7 @@ class MemoryFileStorage implements ProposalStorage {
     const existing = this.map.get(id);
     if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
     existing.data = data;
-    existing.cliente = data.cliente;
+    existing.cliente = razonSocialDe(data);
     this.map.set(id, existing);
     await this.persist();
     return existing;
@@ -259,7 +262,7 @@ class MemoryFileStorage implements ProposalStorage {
     if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
     const rec: StoredProposal = {
       ...existing,
-      cliente: data.cliente,
+      cliente: razonSocialDe(data),
       version: nextVersion(existing.version),
       createdAt: nowIso(),
       data,
@@ -397,7 +400,7 @@ class KvStorage implements ProposalStorage {
     const existing = await this.getProposal(id);
     if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
     existing.data = data;
-    existing.cliente = data.cliente;
+    existing.cliente = razonSocialDe(data);
     await this.redis.set(kvKey(id), existing);
     return existing;
   }
@@ -419,7 +422,7 @@ class KvStorage implements ProposalStorage {
     if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
     const rec: StoredProposal = {
       ...existing,
-      cliente: data.cliente,
+      cliente: razonSocialDe(data),
       version: nextVersion(existing.version),
       createdAt: nowIso(),
       data,
