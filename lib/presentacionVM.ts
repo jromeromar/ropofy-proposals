@@ -15,6 +15,7 @@ import {
   bandFromJourney,
   type BandName,
 } from "./mapLayout";
+import { razonSocialDe } from "./identidad";
 import type {
   Proposal,
   AsIs,
@@ -127,7 +128,7 @@ export function toPresentacionVM(proposal: Proposal): PresentacionVM {
     }));
 
   return {
-    cliente: proposal.cliente,
+    cliente: razonSocialDe(proposal),
     titular: proposal.titular,
     asIs: proposal.as_is,
     fugaDominante:

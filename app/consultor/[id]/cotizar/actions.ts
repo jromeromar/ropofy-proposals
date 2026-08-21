@@ -15,6 +15,7 @@ import { formatPrice } from "@/lib/rules";
 import { PLAN_LABEL } from "@/lib/mapLayout";
 import { emitirEvento, eventoPropuestaEnviada } from "@/lib/events";
 import { enlaceDe } from "@/lib/enlace";
+import { razonSocialDe } from "@/lib/identidad";
 
 export interface EnviarInput {
   id: string;
@@ -119,7 +120,7 @@ export async function enviarPropuesta(input: EnviarInput): Promise<EnviarResult>
   emitirEvento(
     eventoPropuestaEnviada(
       {
-        cliente: data.cliente,
+        cliente: razonSocialDe(data),
         propuestaId: input.id,
         version: sent.version,
         enlace,

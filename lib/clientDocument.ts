@@ -11,6 +11,7 @@
 
 import { precioFinal, preciosFinalesPorPlan } from "./pricing";
 import { isAIComponent } from "./mapLayout";
+import { razonSocialDe, marcaEfectiva } from "./identidad";
 import type { Proposal, AppliedCondition, ClientDocument, Componente } from "./types";
 
 export type PlanNumero = 1 | 2 | 3;
@@ -70,8 +71,11 @@ export function buildClientDocument(
 ): ClientDocument {
   const doc = JSON.parse(JSON.stringify(data)) as Record<string, unknown>;
 
-  // Brand name, frozen into the snapshot (the JSON only carries the legal name).
-  doc.marca = marca && marca.trim() !== "" ? marca.trim() : null;
+  // Normalise identity into the snapshot: `cliente` = legal name, `marca` =
+  // brand (manual override, else the pipeline's `cliente` when it sent a
+  // separate `razon_social`).
+  doc.cliente = razonSocialDe(data);
+  doc.marca = marcaEfectiva(data, marca);
 
   // Internal, top-level: pricing internals and pipeline scaffolding.
   delete doc.multiplicador_calculado;
