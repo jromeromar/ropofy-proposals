@@ -18,6 +18,21 @@ export const authConfigurado =
   !!process.env.AUTH_MICROSOFT_ENTRA_ID_ID &&
   !!process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET;
 
+/**
+ * Normalize the Entra issuer so a misconfigured env var can't crash the OIDC
+ * discovery with "Invalid URL". Accepts:
+ *  - a full URL  → used as-is
+ *  - a bare tenant id (GUID) or "common"/"organizations"/"consumers"
+ *                → wrapped into https://login.microsoftonline.com/<x>/v2.0
+ *  - empty / unset → defaults to the multi-tenant "common" issuer
+ */
+function issuerEntra(): string {
+  const raw = (process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER ?? "").trim();
+  if (!raw) return "https://login.microsoftonline.com/common/v2.0";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return `https://login.microsoftonline.com/${raw}/v2.0`;
+}
+
 /** Routes that never require a session. */
 export function esRutaPublica(pathname: string): boolean {
   return (
@@ -62,9 +77,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
           // "common" lets both work/school (Entra) and personal Microsoft
           // accounts sign in; override with a tenant issuer to restrict.
-          issuer:
-            process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER ??
-            "https://login.microsoftonline.com/common/v2.0",
+          issuer: issuerEntra(),
         }),
       ]
     : [],
