@@ -72,10 +72,23 @@ export function normalizarResumen(resumen: Resumen | undefined | null): ResumenV
  * by `plan` (1|2|3) or `nivel` (name); when neither is present, by position.
  */
 export function fraseDePlan(
-  planes: PlanFrase[] | undefined | null,
+  planes:
+    | PlanFrase[]
+    | Record<string, { frase?: string; frontera?: string }>
+    | undefined
+    | null,
   plan: 1 | 2 | 3,
 ): string | null {
-  if (!Array.isArray(planes)) return null;
+  if (!planes || typeof planes !== "object") return null;
+  // Object keyed by "1"/"2"/"3" (the shape the pipeline emits).
+  if (!Array.isArray(planes)) {
+    const entry = (planes as Record<string, { frase?: string }>)[String(plan)];
+    if (entry && typeof entry.frase === "string" && entry.frase.trim() !== "") {
+      return entry.frase;
+    }
+    return null;
+  }
+  // Array of { plan?/nivel?, frase } entries.
   for (let i = 0; i < planes.length; i++) {
     const p = planes[i];
     if (!p || typeof p !== "object") continue;
@@ -136,26 +149,44 @@ export function brechaDePlan(
 ): BrechaPlan | null {
   if (!brecha || typeof brecha !== "object") return null;
   const keyed = brecha as Record<string, unknown>;
-  const perPlan =
-    "1" in keyed || "2" in keyed || "3" in keyed;
+  const perPlan = "1" in keyed || "2" in keyed || "3" in keyed;
   const candidate = perPlan
     ? (keyed[String(plan)] as unknown)
     : (brecha as unknown);
   if (!candidate || typeof candidate !== "object") return null;
-  const c = candidate as { lectura?: unknown; modulos?: unknown };
-  const lectura = typeof c.lectura === "string" ? c.lectura : "";
-  const modulos = Array.isArray(c.modulos)
+  const c = candidate as {
+    lectura?: unknown;
+    modulos?: unknown;
+    global?: unknown;
+    por_modulo?: unknown;
+  };
+
+  // Global reading: `lectura` (string) or the pipeline's `global` (string or
+  // { por_que }).
+  let lectura = typeof c.lectura === "string" ? c.lectura : "";
+  if (!lectura) {
+    if (typeof c.global === "string") lectura = c.global;
+    else if (c.global && typeof c.global === "object") {
+      const pq = (c.global as { por_que?: unknown }).por_que;
+      if (typeof pq === "string") lectura = pq;
+    }
+  }
+
+  // Per-module actions: `modulos` ({ modulo, accion }) or the pipeline's
+  // `por_modulo` ({ m, por_que }).
+  const raw = Array.isArray(c.modulos)
     ? c.modulos
-        .filter(
-          (m): m is { modulo: unknown; accion: unknown } =>
-            !!m && typeof m === "object",
-        )
-        .map((m) => ({
-          modulo: String((m as { modulo?: unknown }).modulo ?? ""),
-          accion: String((m as { accion?: unknown }).accion ?? ""),
-        }))
-        .filter((m) => m.modulo !== "" || m.accion !== "")
-    : [];
+    : Array.isArray(c.por_modulo)
+      ? c.por_modulo
+      : [];
+  const modulos = raw
+    .filter((m): m is Record<string, unknown> => !!m && typeof m === "object")
+    .map((m) => ({
+      modulo: String(m.modulo ?? m.m ?? ""),
+      accion: String(m.accion ?? m.por_que ?? ""),
+    }))
+    .filter((m) => m.modulo !== "" || m.accion !== "");
+
   if (lectura === "" && modulos.length === 0) return null;
   return { lectura, modulos };
 }

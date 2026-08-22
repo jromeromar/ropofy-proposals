@@ -82,6 +82,10 @@ export function buildClientDocument(
   delete doc.multiplicador;
   delete doc._fixture;
   delete doc._contrato;
+  delete doc.libreria_hash;
+  // `panel_interno` is the consultant-only bundle (sessions, no_aplican,
+  // pricing internals, consultant questions) — it must never reach the client.
+  delete doc.panel_interno;
 
   // Consultant-only, never on the client canvas (A3, E18): the session date,
   // the estimated kickoff window and "lo que no se dibuja". They stay in the

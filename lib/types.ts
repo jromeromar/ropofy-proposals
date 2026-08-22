@@ -99,12 +99,23 @@ export interface BrechaPlan {
   modulos: BrechaModulo[];
 }
 /**
- * `brecha_fuera_de_alcance`: either keyed by plan (reactive: null for a plan
- * means it reaches 100 → the section hides) or a single flat reading used for
- * every plan. The renderer NEVER computes the gap; the pipeline decides.
+ * The pipeline's flat gap shape: a `global` reading (string or { por_que })
+ * plus `por_modulo` entries keyed by `m` + `por_que`. Normalised on read.
+ */
+export interface BrechaGlobalPorModulo {
+  global: string | { por_que?: string };
+  por_modulo: Array<{ m?: string; modulo?: string; por_que?: string; accion?: string }>;
+}
+
+/**
+ * `brecha_fuera_de_alcance`: accepts the flat `{ global, por_modulo }` shape the
+ * pipeline emits, a `{ lectura, modulos }` reading, OR a per-plan map (reactive:
+ * null for a plan means it reaches 100 → the section hides). The renderer NEVER
+ * computes the gap; the pipeline decides.
  */
 export type BrechaFueraDeAlcance =
   | BrechaPlan
+  | BrechaGlobalPorModulo
   | { "1"?: BrechaPlan | null; "2"?: BrechaPlan | null; "3"?: BrechaPlan | null };
 
 export interface Fuga {
@@ -198,20 +209,29 @@ export interface Proposal {
   modo: Modo;
   as_is: AsIs;
   fugas: Fuga[];
-  /** Personalised plan one-liners (E14); optional, falls back to defaults. */
-  planes?: PlanFrase[];
+  /**
+   * Personalised plan one-liners (E14). Either an array or an object keyed by
+   * "1"/"2"/"3" (the shape the pipeline actually emits). Optional; falls back
+   * to the built-in defaults.
+   */
+  planes?: PlanFrase[] | Record<string, { frase?: string; frontera?: string }>;
   /** Gap-to-100 reading (F20); optional, section hidden when absent. */
   brecha_fuera_de_alcance?: BrechaFueraDeAlcance;
   madurez: Madurez[];
-  nota: Nota;
+  /** Optional in newer builds — derived from `madurez` when absent. */
+  nota?: Nota;
   componentes: Record<string, Componente>;
-  no_aplican: Par[];
+  /** Moved into `panel_interno` in newer builds; optional at the top level. */
+  no_aplican?: Par[];
   integraciones: Array<[string, string, EtiquetaIntegracion]>;
-  multiplicador_calculado: {
+  /** Moved into `panel_interno` in newer builds; optional at the top level. */
+  multiplicador_calculado?: {
     "1": MultiplicadorPlan;
     "2": MultiplicadorPlan;
     "3": MultiplicadorPlan;
   };
+  /** Consultant-only bundle (sessions, no_aplican, pricing internals, …). */
+  panel_interno?: Record<string, unknown>;
   condicion_comercial: CondicionComercial;
   plan_recomendado: PlanRecomendado;
   advertencias: string[];

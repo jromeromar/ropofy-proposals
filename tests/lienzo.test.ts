@@ -7,6 +7,8 @@ import {
   normalizarGestionFila,
   bloqueDeCategoria,
 } from "@/lib/lienzo";
+import { benchmarkPorModulo } from "@/lib/mapLayout";
+import { notaHoy } from "@/lib/grade";
 
 describe("normalizarResumen (B4)", () => {
   it("degrada un string a solo párrafo", () => {
@@ -110,6 +112,50 @@ describe("normalizarGestionFila (B6)", () => {
       nota: "primer contacto",
       detalle: ["toma el pedido", "agenda"],
     });
+  });
+});
+
+describe("formas reales del contrato v5", () => {
+  it("fraseDePlan lee `planes` como objeto {\"1\":{frase}}", () => {
+    const planes = {
+      "1": { frontera: "f1", frase: "uno" },
+      "2": { frontera: "f2", frase: "dos" },
+      "3": { frontera: "f3", frase: "tres" },
+    };
+    expect(fraseDePlan(planes, 1)).toBe("uno");
+    expect(fraseDePlan(planes, 3)).toBe("tres");
+  });
+
+  it("brechaDePlan lee la forma {global, por_modulo}", () => {
+    const b = {
+      global: { por_que: "Faltan 18 puntos por datos por entregar." },
+      por_modulo: [
+        { m: "Atracción", por_que: "Declarar el gasto real de pauta." },
+      ],
+    };
+    const r = brechaDePlan(b, 2);
+    expect(r?.lectura).toContain("Faltan 18 puntos");
+    expect(r?.modulos[0]).toEqual({
+      modulo: "Atracción",
+      accion: "Declarar el gasto real de pauta.",
+    });
+  });
+
+  it("benchmarkPorModulo lee el mapa anidado en `por_modulo`", () => {
+    const bench = {
+      por_modulo: { Gestión: 1.3, Atracción: 1.2 },
+      fuente: "diagnósticos de PYMES en Colombia y Argentina",
+    };
+    expect(benchmarkPorModulo(bench)).toEqual({ Gestión: 1.3, Atracción: 1.2 });
+  });
+
+  it("notaHoy deriva la nota desde madurez (suma/28)", () => {
+    const madurez = Array.from({ length: 7 }, (_, i) => ({
+      hoy: i === 0 ? 2 : 1,
+      p: { "1": 2, "2": 3, "3": 4 },
+    }));
+    // suma hoy = 2 + 6*1 = 8 → round(8/28*100) = 29 → letra E
+    expect(notaHoy(madurez)).toEqual({ puntos: 29, letra: "E" });
   });
 });
 

@@ -247,11 +247,17 @@ export function validateProposal(input: unknown): ValidationResult {
   validateAsIs(p.as_is, errors);
   validateFugas(p.fugas, errors);
   validateMadurez(p.madurez, errors);
-  validateNota(p.nota, errors);
+  // `nota` is optional: newer pipeline builds omit it and the renderer derives
+  // it from `madurez` (same formula). When present it must be well-formed.
+  if (!isAbsent(p.nota)) validateNota(p.nota, errors);
   validateComponentes(p.componentes, errors);
-  validateNoAplican(p.no_aplican, errors);
+  // `no_aplican` and `multiplicador_calculado` moved into `panel_interno` in
+  // newer builds (both are consultant-internal). Validate only if still sent
+  // at the top level, so both contract generations load.
+  if (!isAbsent(p.no_aplican)) validateNoAplican(p.no_aplican, errors);
   validateIntegraciones(p.integraciones, errors);
-  validateMultiplicador(p.multiplicador_calculado, errors);
+  if (!isAbsent(p.multiplicador_calculado))
+    validateMultiplicador(p.multiplicador_calculado, errors);
   validateCondicionComercial(p.condicion_comercial, errors);
   validatePlanRecomendado(p.plan_recomendado, errors);
 

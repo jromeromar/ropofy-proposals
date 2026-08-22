@@ -50,6 +50,15 @@ export function checklistTieneContenido(c: ChecklistConsultor): boolean {
 
 export function checklistConsultor(data: Proposal): ChecklistConsultor {
   const raw = data as Record<string, unknown>;
+  // Newer builds nest the consultant-only material under `panel_interno`;
+  // older ones put it at the top level. Read from the panel first, then fall
+  // back to the top level so both contract generations work.
+  const panel =
+    raw.panel_interno && typeof raw.panel_interno === "object"
+      ? (raw.panel_interno as Record<string, unknown>)
+      : {};
+  const pick = (key: string): unknown =>
+    panel[key] !== undefined ? panel[key] : raw[key];
 
   const grafiaEstado =
     typeof raw.cliente_grafia_estado === "string"
@@ -74,12 +83,16 @@ export function checklistConsultor(data: Proposal): ChecklistConsultor {
         }))
     : [];
 
-  const datosQueFaltan = Array.isArray(raw.datos_que_faltan)
-    ? (raw.datos_que_faltan as unknown[]).map((x) => String(x))
-    : [];
+  // Next-call agenda: `datos_que_faltan`, else the panel's consultant questions.
+  const datosFuente = Array.isArray(pick("datos_que_faltan"))
+    ? (pick("datos_que_faltan") as unknown[])
+    : Array.isArray(pick("preguntas_para_el_consultor"))
+      ? (pick("preguntas_para_el_consultor") as unknown[])
+      : [];
+  const datosQueFaltan = datosFuente.map((x) => String(x)).filter((s) => s !== "");
 
-  const sesiones = Array.isArray(raw.sesiones)
-    ? (raw.sesiones as unknown[]).map((x) => String(x)).filter((s) => s !== "")
+  const sesiones = Array.isArray(pick("sesiones"))
+    ? (pick("sesiones") as unknown[]).map((x) => String(x)).filter((s) => s !== "")
     : [];
 
   const ventana =
@@ -87,8 +100,8 @@ export function checklistConsultor(data: Proposal): ChecklistConsultor {
       ? raw.ventana
       : null;
 
-  const noAplican = Array.isArray(raw.no_aplican)
-    ? (raw.no_aplican as unknown[])
+  const noAplican = Array.isArray(pick("no_aplican"))
+    ? (pick("no_aplican") as unknown[])
         .filter((x): x is unknown[] => Array.isArray(x) && x.length >= 2)
         .map((x) => [String(x[0]), String(x[1])] as [string, string])
     : [];

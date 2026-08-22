@@ -26,9 +26,18 @@ describe("validateProposal", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("rechaza cuando falta el bloque «nota»", () => {
+  it("acepta cuando falta «nota» (opcional; se deriva de madurez)", () => {
+    // Newer pipeline builds omit `nota`; the renderer derives it from
+    // `madurez`, so its absence must NOT reject the proposal.
     const p = clone(loadFixture()) as Record<string, unknown>;
     delete p.nota;
+    const result = validateProposal(p);
+    expect(result.ok).toBe(true);
+  });
+
+  it("valida «nota» cuando SÍ viene y está malformada", () => {
+    const p = clone(loadFixture()) as Record<string, unknown>;
+    (p as { nota: unknown }).nota = { letra: "Z", puntos: 999 };
     const result = validateProposal(p);
     expect(result.ok).toBe(false);
     expect(result.errors.some((e) => e.includes("nota"))).toBe(true);
@@ -106,7 +115,7 @@ describe("validateProposal", () => {
 
   it("reporta todos los problemas a la vez, no fail-fast", () => {
     const p = clone(loadFixture()) as Record<string, unknown>;
-    delete p.nota;
+    delete p.titular;
     delete p.plan_recomendado;
     const result = validateProposal(p);
     expect(result.errors.length).toBeGreaterThanOrEqual(2);

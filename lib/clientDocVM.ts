@@ -6,6 +6,7 @@
  */
 
 import { bandsFrom, benchmarkPorModulo, type Band } from "./mapLayout";
+import { notaHoy } from "./grade";
 import {
   normalizarResumen,
   fraseDePlan,
@@ -187,14 +188,32 @@ export function toClientDocVM(doc: ClientDocument, sentAt: string): ClientDocVM 
     moneda?: string;
     precio_por_plan?: { "1": number; "2": number; "3": number };
   };
-  const nota = doc.nota as { letra: LetraNota; puntos: number };
   const madurezRaw = (doc.madurez ?? []) as Array<Record<string, unknown>>;
+  // `nota` is optional in newer builds — derive it from `madurez` (same
+  // formula the pipeline uses) when the contract does not carry it.
+  const notaRaw = doc.nota as { letra?: LetraNota; puntos?: number } | undefined;
+  const nota =
+    notaRaw && notaRaw.letra != null && notaRaw.puntos != null
+      ? { letra: notaRaw.letra, puntos: notaRaw.puntos }
+      : notaHoy(
+          madurezRaw.map((m) => ({
+            hoy: Number(m.hoy ?? 0),
+            p: (m.p as { "1": number; "2": number; "3": number }) ?? {
+              "1": 0,
+              "2": 0,
+              "3": 0,
+            },
+          })),
+        );
   const bench = benchmarkPorModulo(doc.benchmark);
   const planReco = (doc.plan_recomendado ?? {}) as {
     plan?: 1 | 2 | 3;
     por_que?: string;
   };
-  const planes = (doc as { planes?: unknown }).planes as PlanFrase[] | undefined;
+  const planes = (doc as { planes?: unknown }).planes as
+    | PlanFrase[]
+    | Record<string, { frase?: string; frontera?: string }>
+    | undefined;
   // Sector average as a 0-100 score (7 modules × 4 levels = 28).
   const puntosSector = bench
     ? Math.round(
