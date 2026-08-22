@@ -14,8 +14,15 @@ import { gradeForPlan } from "@/lib/grade";
 import { bloquePrecioEfectivo } from "@/lib/condition";
 import { formatVigencia } from "@/lib/clientDocument";
 import { isLocked, esCortesia, PLAN_RANK, PLAN_LABEL } from "@/lib/mapLayout";
+import { brechaDePlan, normalizarGestionFila } from "@/lib/lienzo";
 import type { ClientDocVM, ClientComp, FugaVM } from "@/lib/clientDocVM";
-import type { Acceptance, Visibilidad, AsIsFila } from "@/lib/types";
+import type {
+  Acceptance,
+  Visibilidad,
+  AsIsFila,
+  AsIsGestionFila,
+  CategoriaFuga,
+} from "@/lib/types";
 import RadarMadurez from "@/components/RadarMadurez";
 import { aceptarPropuesta } from "./actions";
 import { useTelemetria } from "./useTelemetria";
@@ -157,12 +164,7 @@ export default function ClientDocView({
 
   return (
     <article className="cd">
-      <FloatingPlanes
-        plan={plan}
-        onSelect={setPlan}
-        moneda={vm.moneda}
-        precioDe={precioDe}
-      />
+      <FloatingPlanes plan={plan} onSelect={setPlan} />
       <Portada vm={vm} />
       <Entendimos vm={vm} />
       <SistemaHoy vm={vm} />
@@ -172,6 +174,7 @@ export default function ClientDocView({
       <PlanoCompleto vm={vm} plan={plan} />
       <LosTresPlanes vm={vm} plan={plan} onSelect={setPlan} precioDe={precioDe} />
       <ADondeLlega vm={vm} plan={plan} />
+      <BrechaCien vm={vm} plan={plan} />
       <CasosDeExito />
       <Condiciones vm={vm} />
       <ComoArrancamos />
@@ -241,16 +244,15 @@ function Portada({ vm }: { vm: ClientDocVM }) {
 
 // --- selector de plan flotante -----------------------------------------
 
+// A1: the floating selector switches plans but shows NO price — the price must
+// not appear before the diagnosis. It surfaces for the first time in "Los tres
+// planes", further down. So this selector carries plan names only.
 function FloatingPlanes({
   plan,
   onSelect,
-  moneda,
-  precioDe,
 }: {
   plan: Plan;
   onSelect: (p: Plan) => void;
-  moneda: string;
-  precioDe: (p: Plan) => number;
 }) {
   const [ver, setVer] = useState(false);
   useEffect(() => {
@@ -272,7 +274,6 @@ function FloatingPlanes({
             onClick={() => onSelect(p)}
           >
             {PLAN_LABEL[p]}
-            <small>{formatPrice(precioDe(p), moneda)}</small>
           </button>
         ))}
       </div>
@@ -292,7 +293,14 @@ function Entendimos({ vm }: { vm: ClientDocVM }) {
       </p>
       <div className="cd-two-col">
         <div className="cd-prose">
-          <p>{vm.resumen}</p>
+          {vm.resumen.parrafo && <p>{vm.resumen.parrafo}</p>}
+          {vm.resumen.bullets.length > 0 && (
+            <ul className="cd-resumen-bullets">
+              {vm.resumen.bullets.map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+          )}
           {vm.asIs.de_donde_llegan.length > 0 && (
             <div className="cd-pills">
               {vm.asIs.de_donde_llegan.map(([canal], i) => (
@@ -313,22 +321,6 @@ function Entendimos({ vm }: { vm: ClientDocVM }) {
               </span>
             </div>
           ))}
-          {vm.sesiones.length > 0 && (
-            <div className="cd-figure-row">
-              <span className="cd-figure-label">Sesión de diagnóstico</span>
-              <span className="cd-figure-value cd-figure-sm">
-                {vm.sesiones.join(" · ")}
-              </span>
-            </div>
-          )}
-          {vm.ventana && (
-            <div className="cd-figure-row">
-              <span className="cd-figure-label">Arranque estimado</span>
-              <span className="cd-figure-value cd-figure-sm">
-                {vm.ventana} semanas desde la firma
-              </span>
-            </div>
-          )}
           {vm.datosQueFaltan.length > 0 && (
             <div className="cd-conflicto">
               <b>Lo que quedó por capturar — </b>
@@ -367,16 +359,57 @@ function AsIsColumn({
   );
 }
 
+// B6: the middle axis renders the role as the primary item and its `detalle`
+// as visually subordinate sub-items — never at the same level (that was the
+// "Telefonistas" vs "toma el pedido" confusion). Accepts the legacy tuple form
+// too (degrades to a flat item with no sub-items).
+function GestionColumn({
+  titulo,
+  items,
+}: {
+  titulo: string;
+  items: Array<AsIsFila | AsIsGestionFila>;
+}) {
+  return (
+    <div className="cd-asis-col">
+      <h3 className="cd-asis-title">{titulo}</h3>
+      <ul>
+        {items.map((fila, i) => {
+          const g = normalizarGestionFila(fila);
+          return (
+            <li key={i}>
+              <strong>{g.quien}</strong>
+              {g.nota && <span className="cd-asis-note">{g.nota}</span>}
+              {g.detalle.length > 0 && (
+                <ul className="cd-asis-detalle">
+                  {g.detalle.map((d, j) => (
+                    <li key={j}>{d}</li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function SistemaHoy({ vm }: { vm: ClientDocVM }) {
   return (
     <section className="cd-section">
-      <SecHead n={2}>Su sistema comercial hoy</SecHead>
+      <SecHead
+        n={2}
+        small="¿Por dónde llega, cómo se gestiona, dónde queda el rastro?"
+      >
+        Su sistema comercial hoy
+      </SecHead>
       <div className="cd-asis">
-        <AsIsColumn titulo="Por dónde llegan" items={vm.asIs.de_donde_llegan} />
+        <AsIsColumn titulo="¿Por dónde llega?" items={vm.asIs.de_donde_llegan} />
         <div className="cd-arrow" aria-hidden="true">→</div>
-        <AsIsColumn titulo="Quién recibe" items={vm.asIs.por_donde_pasan} />
+        <GestionColumn titulo="¿Cómo se gestiona?" items={vm.asIs.por_donde_pasan} />
         <div className="cd-arrow" aria-hidden="true">→</div>
-        <AsIsColumn titulo="Dónde queda el rastro" items={vm.asIs.donde_queda} />
+        <AsIsColumn titulo="¿Dónde queda el rastro?" items={vm.asIs.donde_queda} />
       </div>
     </section>
   );
@@ -411,6 +444,9 @@ function FugaCard({
   }
   return (
     <div className={`${cls}${dominante ? " dominante" : ""}`}>
+      {/* C8: the title is the protagonist; the figure and the evidence quote
+          are rendered smaller/lighter beneath it. C9: the word "fuga" never
+          appears inside a card — only in the block header. */}
       <h3 className="cd-fuga-titulo">{f.titulo}</h3>
       {f.cifra &&
         (f.cifra.length <= 24 ? (
@@ -473,20 +509,68 @@ function FugaCard({
   );
 }
 
-function Fugas({ vm, onSenal }: { vm: ClientDocVM; onSenal?: () => void }) {
+// C7: three blocks, each with its own header, grouped by `categoria`.
+const BLOQUES_FUGA: Array<{
+  cat: CategoriaFuga;
+  titulo: string;
+  sub: string;
+}> = [
+  { cat: "fuga", titulo: "Las fugas", sub: "Por dónde se sale la plata" },
+  { cat: "ceguera", titulo: "Las cegueras", sub: "Lo que no deja ver" },
+  {
+    cat: "restriccion",
+    titulo: "Las restricciones",
+    sub: "Lo que limita el crecimiento",
+  },
+];
+
+function BloqueFugas({
+  titulo,
+  sub,
+  fugas,
+  onSenal,
+}: {
+  titulo: string;
+  sub: string;
+  fugas: FugaVM[];
+  onSenal?: () => void;
+}) {
+  if (fugas.length === 0) return null;
+  const dominante = fugas.find((f) => f.dominante) ?? null;
+  const resto = fugas.filter((f) => !f.dominante);
   return (
-    <section className="cd-section">
-      <SecHead n={3} small="Confírmelas: dígannos si le pasan">
-        Las fugas
-      </SecHead>
-      {vm.fugaDominante && (
-        <FugaCard f={vm.fugaDominante} dominante onSenal={onSenal} />
-      )}
+    <div className="cd-fuga-bloque">
+      <div className="cd-fuga-bloque-head">
+        <h3 className="cd-fuga-bloque-titulo">{titulo}</h3>
+        <span className="cd-fuga-bloque-sub">{sub}</span>
+      </div>
+      {dominante && <FugaCard f={dominante} dominante onSenal={onSenal} />}
       <div className="cd-fugas-grid">
-        {vm.fugasResto.map((f, i) => (
+        {resto.map((f, i) => (
           <FugaCard f={f} key={i} onSenal={onSenal} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function Fugas({ vm, onSenal }: { vm: ClientDocVM; onSenal?: () => void }) {
+  const porCategoria = (cat: CategoriaFuga) =>
+    vm.fugas.filter((f) => f.categoria === cat);
+  return (
+    <section className="cd-section">
+      <SecHead n={3} small="Confírmelas: díganos si le pasan">
+        Lo que vimos
+      </SecHead>
+      {BLOQUES_FUGA.map((b) => (
+        <BloqueFugas
+          key={b.cat}
+          titulo={b.titulo}
+          sub={b.sub}
+          fugas={porCategoria(b.cat)}
+          onSenal={onSenal}
+        />
+      ))}
     </section>
   );
 }
@@ -597,7 +681,7 @@ function Diagnostico({ vm }: { vm: ClientDocVM }) {
                 <i style={{ background: "#708287" }} aria-hidden="true" />
                 <span>
                   <b>Promedio del sector</b>
-                  <small>pymes comparables</small>
+                  <small>{vm.benchmarkFuente ?? "pymes comparables"}</small>
                 </span>
               </div>
               <div>
@@ -635,15 +719,9 @@ function Diagnostico({ vm }: { vm: ClientDocVM }) {
           </div>
         ))}
       </div>
-
-      {vm.planRecomendadoPorQue && (
-        <div className="cd-reco">
-          <h3 className="cd-reco-titulo">
-            Recomendación: Plan {PLAN_LABEL[vm.planRecomendado]}
-          </h3>
-          <p>{vm.planRecomendadoPorQue}</p>
-        </div>
-      )}
+      {/* D13: the "Recomendación: Plan X" paragraph is NOT shown here — it is
+          redundant with Arquitectura Comercial, where the recommended plan is
+          already labelled. The freed space is taken by the per-module grade. */}
     </section>
   );
 }
@@ -671,15 +749,32 @@ function ClaveDeLectura() {
 
 // --- 7. El plano completo ----------------------------------------------
 
-function CompCard({ comp, plan }: { comp: ClientComp; plan: Plan }) {
+function CompCard({
+  comp,
+  plan,
+  verEngranaje,
+}: {
+  comp: ClientComp;
+  plan: Plan;
+  verEngranaje: boolean;
+}) {
   const locked = isLocked(comp.plan, plan, comp.cortesiaPlan);
   const cortesia = esCortesia(comp.plan, plan, comp.cortesiaPlan);
+  // E15: the card shows the one-line synthesis; the full detail is raised in
+  // the specifications session, not drawn here. Falls back to `beneficio`.
+  const linea = comp.sintesis ?? comp.beneficio;
   return (
     <div
       className={`cd-card${locked ? " locked" : ""}${cortesia ? " cortesia" : ""}`}
     >
       <div className="cd-card-nombre">{comp.nombre}</div>
-      {comp.beneficio && <div className="cd-card-beneficio">{comp.beneficio}</div>}
+      {linea && <div className="cd-card-beneficio">{linea}</div>}
+      {verEngranaje && comp.conectaCon.length > 0 && (
+        <div className="cd-card-conecta">
+          <span className="cd-conecta-flecha" aria-hidden="true">↳</span>
+          alimenta a {comp.conectaCon.join(", ")}
+        </div>
+      )}
       <div className="cd-card-chips">
         {comp.cuota && <span className="cd-chip-cuota">{comp.cuota}</span>}
         {comp.instancias > 1 && (
@@ -735,11 +830,32 @@ function AINode({ entries, plan }: { entries: ClientComp[]; plan: Plan }) {
 }
 
 function PlanoCompleto({ vm, plan }: { vm: ClientDocVM; plan: Plan }) {
+  // E16: the "engranaje" (how each capability feeds the next) is off by default
+  // — a toggle reveals it only if the consultant/reader wants it. Only shown
+  // when the contract actually carries `conecta_con` data. Ligereza sobre
+  // completitud: no arrows are drawn, just the light "alimenta a …" line, so it
+  // can never dirty the canvas.
+  const [verEngranaje, setVerEngranaje] = useState(false);
+  const hayEngranaje = vm.bands.some((b) =>
+    b.regular.some((c) => c.conectaCon.length > 0),
+  );
   return (
     <section className="cd-section">
-      <SecHead n={6} small="Todo lo que se pone a trabajar por usted">
-        El plano completo
-      </SecHead>
+      <div className="cd-plano-head">
+        <SecHead n={6} small="Todo lo que se pone a trabajar por usted">
+          El plano completo
+        </SecHead>
+        {hayEngranaje && (
+          <button
+            type="button"
+            className={`cd-engranaje-toggle${verEngranaje ? " on" : ""}`}
+            aria-pressed={verEngranaje}
+            onClick={() => setVerEngranaje((v) => !v)}
+          >
+            {verEngranaje ? "Ocultar el engranaje" : "Ver el engranaje"}
+          </button>
+        )}
+      </div>
       <div className="cd-lienzo">
         <div className="cd-bands">
           {vm.bands.map((band) => (
@@ -750,7 +866,12 @@ function PlanoCompleto({ vm, plan }: { vm: ClientDocVM; plan: Plan }) {
               </div>
               <div className="cd-band-grid">
                 {band.regular.map((c) => (
-                  <CompCard key={c.key} comp={c} plan={plan} />
+                  <CompCard
+                    key={c.key}
+                    comp={c}
+                    plan={plan}
+                    verEngranaje={verEngranaje}
+                  />
                 ))}
               </div>
               {band.ai.length > 0 && <AINode entries={band.ai} plan={plan} />}
@@ -759,6 +880,8 @@ function PlanoCompleto({ vm, plan }: { vm: ClientDocVM; plan: Plan }) {
         </div>
       </div>
 
+      {/* E17: integrations and external costs stay INSIDE the plano — they show
+          at which point of the journey each is needed. Not moved. */}
       <div className="cd-rail">
         <h3 className="cd-h3">Integraciones y costos externos</h3>
         <div className="cd-rail-grid">
@@ -777,23 +900,9 @@ function PlanoCompleto({ vm, plan }: { vm: ClientDocVM; plan: Plan }) {
           })}
         </div>
       </div>
-
-      {vm.noAplican.length > 0 && (
-        <div className="cd-noaplican">
-          <h3 className="cd-h3">No se dibujan en su plano</h3>
-          <p className="cd-noaplican-intro">
-            Solo le proponemos lo que aplica a su negocio — esto quedó fuera y le
-            decimos por qué:
-          </p>
-          <ul>
-            {vm.noAplican.map(([nombre, razon], i) => (
-              <li key={i}>
-                <strong>{nombre}</strong> — {razon}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* E18: "No se dibujan en su plano" (no_aplican) is removed from the
+          client canvas — it lost the reader. It now lives in the consultant's
+          internal panel. */}
     </section>
   );
 }
@@ -829,7 +938,11 @@ function LosTresPlanes({
               <span className="cd-badge-reco">RECOMENDADO</span>
             )}
             <div className="cd-plan-nombre">{PLAN_LABEL[p]}</div>
-            <div className="cd-plan-frase">{PLAN_PHRASES[p]}</div>
+            {/* E14: personalised phrase from the contract, falling back to the
+                built-in default when the pipeline hasn't sent one. */}
+            <div className="cd-plan-frase">
+              {vm.planFrases[String(p) as PlanKey] ?? PLAN_PHRASES[p]}
+            </div>
             <div className="cd-plan-precio">{formatPrice(precioDe(p), vm.moneda)}</div>
           </button>
         ))}
@@ -873,6 +986,36 @@ function ADondeLlega({ vm, plan }: { vm: ClientDocVM; plan: Plan }) {
           <p className="cd-bar-legend">La línea marca el promedio del sector.</p>
         )}
       </div>
+    </section>
+  );
+}
+
+// --- Brecha para el 100 (F20) ------------------------------------------
+
+// Shown only when the selected plan does NOT take the client to 100 — the
+// pipeline decides this by sending a reading for that plan (and null when the
+// plan reaches 100). The renderer NEVER computes the gap; it reads and, when
+// the plan changes, resolves the reading for the new plan. Tone: a roadmap for
+// the client, not a disclaimer.
+function BrechaCien({ vm, plan }: { vm: ClientDocVM; plan: Plan }) {
+  const brecha = brechaDePlan(vm.brechaFuera, plan);
+  if (!brecha) return null;
+  return (
+    <section className="cd-section cd-brecha">
+      <SecHead n={9} small="Qué falta para llegar al 100 — y cómo se cierra">
+        El tramo que le queda al {PLAN_LABEL[plan]}
+      </SecHead>
+      {brecha.lectura && <p className="cd-brecha-lectura">{brecha.lectura}</p>}
+      {brecha.modulos.length > 0 && (
+        <div className="cd-brecha-grid">
+          {brecha.modulos.map((m, i) => (
+            <div className="cd-brecha-card" key={i}>
+              <div className="cd-brecha-mod">{m.modulo}</div>
+              <div className="cd-brecha-accion">{m.accion}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -945,13 +1088,19 @@ function Condiciones({ vm }: { vm: ClientDocVM }) {
   if (vm.advertencias.length === 0) return null;
   return (
     <section className="cd-section">
-      <SecHead n={10}>Condiciones de arranque</SecHead>
+      <SecHead n={10}>Antes de arrancar</SecHead>
       <p className="cd-intro">{introAdvertencias(vm.advertencias.length)}</p>
-      <ul className="cd-condiciones">
+      {/* F21: one idea per card — lighter than a dense block of text. */}
+      <div className="cd-condiciones">
         {vm.advertencias.map((a, i) => (
-          <li key={i}>{a}</li>
+          <div className="cd-condicion-card" key={i}>
+            <span className="cd-condicion-num" aria-hidden="true">
+              {i + 1}
+            </span>
+            <p>{a}</p>
+          </div>
         ))}
-      </ul>
+      </div>
     </section>
   );
 }

@@ -25,8 +25,9 @@ import {
   type ChecklistConsultor,
   checklistTieneContenido,
 } from "@/lib/checklist";
-import { guardarInline, type EdicionInline } from "./actions";
+import { guardarInline, registrarNotaFuga, type EdicionInline } from "./actions";
 import { gradeForPlan } from "@/lib/grade";
+import { brechaDePlan } from "@/lib/lienzo";
 import {
   isLocked,
   esCortesia,
@@ -40,8 +41,9 @@ import type {
   CompVM,
   MadurezVM,
   InventarioItem,
+  FugaVM,
 } from "@/lib/presentacionVM";
-import type { AsIs, PlanNombre } from "@/lib/types";
+import type { AsIs, CategoriaFuga, NotaFuga, PlanNombre } from "@/lib/types";
 
 type Plan = 1 | 2 | 3;
 type PlanKey = "1" | "2" | "3";
@@ -66,6 +68,8 @@ interface Props {
   marca?: string | null;
   /** Consultant-only checklist (never shown to the client). */
   checklist?: ChecklistConsultor;
+  /** Leak confirmations/corrections recorded so far (C10 registry). */
+  notasFugas?: NotaFuga[];
   /** Test/override hook; defaults to planRecomendado. */
   initialPlan?: Plan;
 }
@@ -137,6 +141,7 @@ export default function PresentacionView({
   vm,
   marca,
   checklist,
+  notasFugas,
   initialPlan,
 }: Props) {
   const [plan, setPlan] = useState<Plan>(initialPlan ?? vm.planRecomendado);
@@ -281,16 +286,14 @@ export default function PresentacionView({
     <div className={`pv${editing ? " pv-editando" : ""}`}>
       <Portada cliente={vm.cliente} marca={marca ?? null} titular={vm.titular} />
 
+      {/* A1: the top/sticky and floating selectors switch plans but show NO
+          price — the price must not appear before the diagnosis. It surfaces
+          for the first time in "Los planes", further down. */}
       <div ref={switcherRef}>
-        <PlanSwitcher plan={plan} onSelect={setPlan} precioDe={precioDe} sticky />
+        <PlanSwitcher plan={plan} onSelect={setPlan} sticky />
       </div>
 
-      <FloatingSwitcher
-        visible={showFloating}
-        plan={plan}
-        onSelect={setPlan}
-        precio={precio}
-      />
+      <FloatingSwitcher visible={showFloating} plan={plan} onSelect={setPlan} />
 
       <div className="pv-edit-toolbar">
         {editing ? (
@@ -374,11 +377,12 @@ export default function PresentacionView({
       />
 
       <Entendimos asIs={vm.asIs} />
-      <Fugas vm={vm} />
+      <Fugas vm={vm} id={id} notasFugas={notasFugas ?? []} />
       <LaNota vm={vm} />
       <LosPlanes vm={vm} plan={plan} onSelect={setPlan} precioDe={precioDe} />
       <ElPlano vm={vm} plan={plan} />
       <ADondeLlega vm={vm} plan={plan} />
+      <BrechaCien vm={vm} plan={plan} />
       <Cierre id={id} plan={plan} precio={precio} />
     </div>
     </CortesiaContext.Provider>
@@ -466,6 +470,60 @@ function ChecklistDrawer({
                   <div className="pv-chk-lectura">{s.lectura}</div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {(checklist.sesiones.length > 0 || checklist.ventana) && (
+            <div className="pv-chk-grupo">
+              <div className="pv-drawer-banda">Sesión y arranque</div>
+              <p className="pv-chk-nota">
+                No se muestran en el lienzo del cliente; los tienes aquí para la
+                conversación.
+              </p>
+              {checklist.sesiones.length > 0 && (
+                <div className="pv-chk-fila">
+                  <span className="pv-chk-nombre">
+                    {checklist.sesiones.join(" · ")}
+                  </span>
+                  <span className="pv-chk-tipo">sesión de diagnóstico</span>
+                </div>
+              )}
+              {checklist.ventana && (
+                <div className="pv-chk-fila">
+                  <span className="pv-chk-nombre">
+                    {checklist.ventana} semanas desde la firma
+                  </span>
+                  <span className="pv-chk-tipo">arranque estimado</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {checklist.noAplican.length > 0 && (
+            <div className="pv-chk-grupo">
+              <div className="pv-drawer-banda">
+                No se dibuja en el plano ({checklist.noAplican.length})
+              </div>
+              <p className="pv-chk-nota">
+                Fuera del lienzo del cliente. Úsalo si alguien pregunta por qué
+                algo no está.
+              </p>
+              {checklist.noAplican.map(([nombre, razon], i) => (
+                <div className="pv-chk-silencio" key={i}>
+                  <div className="pv-chk-mod">{nombre}</div>
+                  <div className="pv-chk-lectura">{razon}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {checklist.benchmarkFuenteConDigitos && (
+            <div className="pv-chk-grupo">
+              <div className="pv-drawer-banda">Revisar con el pipeline</div>
+              <div className="pv-chk-grafia alerta">
+                ⚠ La fuente del benchmark trae dígitos (tamaño de muestra). No se
+                muestra al cliente; corrige el texto en el pipeline.
+              </div>
             </div>
           )}
         </div>
@@ -638,12 +696,10 @@ const ESCALA_NOTA: Array<{ g: string; r: string }> = [
 function PlanSwitcher({
   plan,
   onSelect,
-  precioDe,
   sticky,
 }: {
   plan: Plan;
   onSelect: (p: Plan) => void;
-  precioDe: (p: Plan) => string;
   sticky?: boolean;
 }) {
   return (
@@ -657,7 +713,6 @@ function PlanSwitcher({
           onClick={() => onSelect(p)}
         >
           <span>{PLAN_LABEL[p]}</span>
-          <small>{precioDe(p)}</small>
         </button>
       ))}
     </div>
@@ -668,12 +723,10 @@ function FloatingSwitcher({
   visible,
   plan,
   onSelect,
-  precio,
 }: {
   visible: boolean;
   plan: Plan;
   onSelect: (p: Plan) => void;
-  precio: string;
 }) {
   return (
     <div className={`pv-floating${visible ? " show" : ""}`} aria-hidden={!visible}>
@@ -690,7 +743,6 @@ function FloatingSwitcher({
           </button>
         ))}
       </div>
-      <div className="pv-floating-price">{precio}</div>
     </div>
   );
 }
@@ -756,6 +808,8 @@ function extractStats(asIs: AsIs): { value: string; label: string }[] {
   const out: { value: string; label: string }[] = [];
   for (const col of cols) {
     for (const fila of col) {
+      // The middle axis may carry hierarchical { quien, … } objects (no figure).
+      if (!Array.isArray(fila)) continue;
       const [canal, , extra] = fila;
       // cifra may be text or a number; unidad is optional text.
       const cifra = extra?.cifra == null ? "" : String(extra.cifra).trim();
@@ -795,54 +849,256 @@ function Entendimos({ asIs }: { asIs: AsIs }) {
 
 // --- 3. Las fugas -------------------------------------------------------
 
-function Fugas({ vm }: { vm: PresentacionVM }) {
+// C7: three blocks grouped by `categoria`.
+const BLOQUES_FUGA: Array<{ cat: CategoriaFuga; titulo: string; sub: string }> = [
+  { cat: "fuga", titulo: "Las fugas", sub: "Por dónde se sale la plata" },
+  { cat: "ceguera", titulo: "Las cegueras", sub: "Lo que no deja ver" },
+  {
+    cat: "restriccion",
+    titulo: "Las restricciones",
+    sub: "Lo que limita el crecimiento",
+  },
+];
+
+function fmtNotaFecha(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("es-CO", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+// C10: per-card confirmation + correction note, recorded to the proposal's
+// registry (append-only, attributable). The original card is never overwritten
+// — recorded notes accrue beneath it and stay visible.
+function FugaCardPV({
+  f,
+  id,
+  notas,
+  dominante,
+}: {
+  f: FugaVM;
+  id: string;
+  notas: NotaFuga[];
+  dominante?: boolean;
+}) {
+  const { editing } = useContext(EditContext);
+  const [locales, setLocales] = useState<NotaFuga[]>([]);
+  const [nota, setNota] = useState("");
+  const [anotando, setAnotando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const todas = [...notas, ...locales];
+  const confirmada = todas.some((n) => n.confirmada === true);
+
+  async function registrar(confirmar: boolean | null) {
+    const texto = nota.trim() || null;
+    if (confirmar == null && !texto) return;
+    setGuardando(true);
+    try {
+      const res = await registrarNotaFuga({
+        id,
+        fugaIdx: f.idx,
+        confirmada: confirmar,
+        nota: texto,
+      });
+      if (res.ok) {
+        setLocales((l) => [...l, res.nota]);
+        setNota("");
+        setAnotando(false);
+      }
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  const cls =
+    f.estado === "mitigable"
+      ? "pv-fuga mitigable"
+      : f.estado === "fuera_de_alcance"
+        ? "pv-fuga fuera"
+        : "pv-fuga";
   return (
-    <section className="pv-section">
-      <SecHead n={2}>Las fugas</SecHead>
-      {vm.fugaDominante && (
-        <div className="pv-fuga-dominante">
-          <Editable
-            k={`fuga:${vm.fugaDominante.idx}:titulo`}
-            value={vm.fugaDominante.titulo}
-            as="h3"
-            className="pv-fuga-titulo"
-          />
-          <Editable
-            k={`fuga:${vm.fugaDominante.idx}:valor`}
-            value={vm.fugaDominante.valor}
-            as="div"
-            className="pv-fuga-cifra"
-          />
+    <div className={`${cls}${dominante ? " dominante" : ""}${confirmada ? " confirmada" : ""}`}>
+      {/* C8: title is the protagonist; the figure and the quote read smaller. */}
+      <Editable
+        k={`fuga:${f.idx}:titulo`}
+        value={f.titulo}
+        as="h3"
+        className="pv-fuga-titulo"
+      />
+      {f.valor && (
+        <Editable
+          k={`fuga:${f.idx}:valor`}
+          value={f.valor}
+          as="div"
+          className="pv-fuga-cifra"
+        />
+      )}
+      {f.evidencia && (
+        <blockquote className="pv-fuga-quote">«{f.evidencia}»</blockquote>
+      )}
+      {f.estado === "mitigable" && (
+        <div className="pv-fuga-nota">
+          Depende de: {f.dependeDeTercero ? "un tercero" : "nadie externo"}
         </div>
       )}
-      <div className="pv-fugas-grid">
-        {vm.fugasResto.map((f, i) => {
-          const cls =
-            f.estado === "mitigable"
-              ? "pv-fuga mitigable"
-              : f.estado === "fuera_de_alcance"
-                ? "pv-fuga fuera"
-                : "pv-fuga";
-          return (
-            <div className={cls} key={i}>
-              <Editable
-                k={`fuga:${f.idx}:titulo`}
-                value={f.titulo}
-                as="div"
-                className="pv-fuga-min-titulo"
-              />
-              {f.estado === "mitigable" && (
-                <div className="pv-fuga-nota">
-                  Depende de: {f.dependeDeTercero ? "un tercero" : "nadie externo"}
-                </div>
+      {f.estado === "fuera_de_alcance" && (
+        <div className="pv-fuga-nota">Lo corrige el cliente</div>
+      )}
+
+      {/* C10 controls — hidden while inline-editing the text. */}
+      {!editing && (
+        <div className="pv-fuga-asentir">
+          <button
+            type="button"
+            className={`pv-fuga-confirmar${confirmada ? " si" : ""}`}
+            disabled={guardando}
+            onClick={() => registrar(true)}
+          >
+            {confirmada ? "✓ Confirmada" : "Confirmar «sí, así nos pasa»"}
+          </button>
+          {!anotando && (
+            <button
+              type="button"
+              className="pv-fuga-anotar"
+              onClick={() => setAnotando(true)}
+            >
+              Anotar corrección
+            </button>
+          )}
+        </div>
+      )}
+      {!editing && anotando && (
+        <div className="pv-fuga-nota-form">
+          <textarea
+            className="pv-fuga-nota-input"
+            value={nota}
+            rows={2}
+            placeholder="Lo que el cliente matizó o corrigió…"
+            onChange={(e) => setNota(e.target.value)}
+          />
+          <div className="pv-fuga-nota-acciones">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                setAnotando(false);
+                setNota("");
+              }}
+              disabled={guardando}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => registrar(null)}
+              disabled={guardando || nota.trim() === ""}
+            >
+              {guardando ? "Guardando…" : "Guardar nota"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {todas.length > 0 && (
+        <div className="pv-fuga-registro">
+          {todas.map((n, i) => (
+            <div className="pv-fuga-registro-item" key={i}>
+              {n.confirmada === true && (
+                <span className="pv-fuga-reg-ok">✓ confirmada</span>
               )}
-              {f.estado === "fuera_de_alcance" && (
-                <div className="pv-fuga-nota">Lo corrige el cliente</div>
-              )}
+              {n.nota && <span className="pv-fuga-reg-nota">“{n.nota}”</span>}
+              <span className="pv-fuga-reg-meta">
+                {n.autor} · {fmtNotaFecha(n.at)}
+              </span>
             </div>
-          );
-        })}
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BloqueFugasPV({
+  titulo,
+  sub,
+  fugas,
+  id,
+  notasPorIdx,
+}: {
+  titulo: string;
+  sub: string;
+  fugas: FugaVM[];
+  id: string;
+  notasPorIdx: Map<number, NotaFuga[]>;
+}) {
+  if (fugas.length === 0) return null;
+  const dominante = fugas.find((f) => f.dominante) ?? null;
+  const resto = fugas.filter((f) => !f.dominante);
+  return (
+    <div className="pv-fuga-bloque">
+      <div className="pv-fuga-bloque-head">
+        <h3 className="pv-fuga-bloque-titulo">{titulo}</h3>
+        <span className="pv-fuga-bloque-sub">{sub}</span>
       </div>
+      {dominante && (
+        <FugaCardPV
+          f={dominante}
+          id={id}
+          notas={notasPorIdx.get(dominante.idx) ?? []}
+          dominante
+        />
+      )}
+      <div className="pv-fugas-grid">
+        {resto.map((f) => (
+          <FugaCardPV
+            key={f.idx}
+            f={f}
+            id={id}
+            notas={notasPorIdx.get(f.idx) ?? []}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Fugas({
+  vm,
+  id,
+  notasFugas,
+}: {
+  vm: PresentacionVM;
+  id: string;
+  notasFugas: NotaFuga[];
+}) {
+  const notasPorIdx = new Map<number, NotaFuga[]>();
+  for (const n of notasFugas) {
+    const arr = notasPorIdx.get(n.fugaIdx) ?? [];
+    arr.push(n);
+    notasPorIdx.set(n.fugaIdx, arr);
+  }
+  const porCategoria = (cat: CategoriaFuga) =>
+    vm.fugas.filter((f) => f.categoria === cat);
+  return (
+    <section className="pv-section">
+      <SecHead n={2} small="Confírmalas con el cliente y anota lo que corrija">
+        Lo que vimos
+      </SecHead>
+      {BLOQUES_FUGA.map((b) => (
+        <BloqueFugasPV
+          key={b.cat}
+          titulo={b.titulo}
+          sub={b.sub}
+          fugas={porCategoria(b.cat)}
+          id={id}
+          notasPorIdx={notasPorIdx}
+        />
+      ))}
     </section>
   );
 }
@@ -882,7 +1138,7 @@ function LaNota({ vm }: { vm: PresentacionVM }) {
                 <i style={{ background: "#708287" }} aria-hidden="true" />
                 <span>
                   <b>Promedio del sector</b>
-                  <small>pymes comparables</small>
+                  <small>{vm.benchmarkFuente ?? "pymes comparables"}</small>
                 </span>
               </div>
               <div>
@@ -931,7 +1187,10 @@ function LosPlanes({
               <span className="pv-badge-reco">RECOMENDADO</span>
             )}
             <div className="pv-plan-nombre">{PLAN_LABEL[p]}</div>
-            <div className="pv-plan-frase">{PLAN_PHRASES[p]}</div>
+            {/* E14: personalised phrase from the contract, else the default. */}
+            <div className="pv-plan-frase">
+              {vm.planFrases[String(p) as PlanKey] ?? PLAN_PHRASES[p]}
+            </div>
             <div className="pv-plan-precio">{precioDe(p)}</div>
           </button>
         ))}
@@ -958,7 +1217,15 @@ function ComponentChips({ comp }: { comp: CompVM }) {
   );
 }
 
-function ComponentCard({ comp, plan }: { comp: CompVM; plan: Plan }) {
+function ComponentCard({
+  comp,
+  plan,
+  verEngranaje,
+}: {
+  comp: CompVM;
+  plan: Plan;
+  verEngranaje: boolean;
+}) {
   const { editing } = useContext(EditContext);
   const { ocupadoIdx, setCortesia } = useContext(CortesiaContext);
   const locked = isLocked(comp.plan, plan, comp.cortesiaPlan);
@@ -974,6 +1241,14 @@ function ComponentCard({ comp, plan }: { comp: CompVM; plan: Plan }) {
         as="div"
         className="pv-card-nombre"
       />
+      {/* E15: one-line synthesis on the card; the full detail is raised in the
+          specifications session, not drawn here. */}
+      {comp.sintesis && <div className="pv-card-sintesis">{comp.sintesis}</div>}
+      {verEngranaje && comp.conectaCon.length > 0 && (
+        <div className="pv-card-conecta">
+          <span aria-hidden="true">↳</span> alimenta a {comp.conectaCon.join(", ")}
+        </div>
+      )}
       <ComponentChips comp={comp} />
       {cortesia ? (
         <button
@@ -1065,11 +1340,29 @@ function AINode({ entries, plan }: { entries: CompVM[]; plan: Plan }) {
 }
 
 function ElPlano({ vm, plan }: { vm: PresentacionVM; plan: Plan }) {
+  // E16: the "engranaje" is off by default and only ever adds a light
+  // "alimenta a …" line — no arrows — so it can't dirty the canvas.
+  const [verEngranaje, setVerEngranaje] = useState(false);
+  const hayEngranaje = vm.bands.some((b) =>
+    b.regular.some((c) => c.conectaCon.length > 0),
+  );
   return (
     <section className="pv-section">
-      <SecHead n={5} small="Todo lo que se pone a trabajar">
-        El plano del sistema
-      </SecHead>
+      <div className="pv-plano-head">
+        <SecHead n={5} small="Todo lo que se pone a trabajar">
+          El plano del sistema
+        </SecHead>
+        {hayEngranaje && (
+          <button
+            type="button"
+            className={`pv-engranaje-toggle${verEngranaje ? " on" : ""}`}
+            aria-pressed={verEngranaje}
+            onClick={() => setVerEngranaje((v) => !v)}
+          >
+            {verEngranaje ? "Ocultar engranaje" : "Ver engranaje"}
+          </button>
+        )}
+      </div>
 
       <div className="pv-lienzo">
         <div className="pv-bands">
@@ -1081,7 +1374,12 @@ function ElPlano({ vm, plan }: { vm: PresentacionVM; plan: Plan }) {
               </div>
               <div className="pv-band-grid">
                 {band.regular.map((comp) => (
-                  <ComponentCard key={comp.key} comp={comp} plan={plan} />
+                  <ComponentCard
+                    key={comp.key}
+                    comp={comp}
+                    plan={plan}
+                    verEngranaje={verEngranaje}
+                  />
                 ))}
               </div>
               {band.ai.length > 0 && <AINode entries={band.ai} plan={plan} />}
@@ -1090,6 +1388,7 @@ function ElPlano({ vm, plan }: { vm: PresentacionVM; plan: Plan }) {
         </div>
       </div>
 
+      {/* E17: integrations/costs stay inside the plano — not moved. */}
       <div className="pv-rail">
         <h3 className="pv-h3">Integraciones y costos externos</h3>
         <div className="pv-rail-grid">
@@ -1108,19 +1407,8 @@ function ElPlano({ vm, plan }: { vm: PresentacionVM; plan: Plan }) {
           })}
         </div>
       </div>
-
-      {vm.noAplican.length > 0 && (
-        <div className="pv-noaplican">
-          <h3 className="pv-h3">No se dibujan en su plano</h3>
-          <ul>
-            {vm.noAplican.map(([nombre, razon], i) => (
-              <li key={i}>
-                <strong>{nombre}</strong> — {razon}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* E18: "No se dibujan" (no_aplican) removed from the canvas; it lives in
+          the consultant's internal Checklist drawer now. */}
     </section>
   );
 }
@@ -1181,6 +1469,35 @@ function ADondeLlega({ vm, plan }: { vm: PresentacionVM; plan: Plan }) {
       </div>
       {vm.benchmarkModulos && (
         <p className="pv-bar-legend">La línea marca el promedio del sector.</p>
+      )}
+    </section>
+  );
+}
+
+// --- Brecha para el 100 (F20) ------------------------------------------
+
+// Shown only when the selected plan does NOT reach 100 — the pipeline sends a
+// reading for that plan (and null when it reaches 100). No calculation here;
+// the section resolves the reading for the current plan and updates when the
+// plan changes.
+function BrechaCien({ vm, plan }: { vm: PresentacionVM; plan: Plan }) {
+  const brecha = brechaDePlan(vm.brechaFuera, plan);
+  if (!brecha) return null;
+  return (
+    <section className="pv-section pv-brecha">
+      <SecHead n={7} small="Qué falta para el 100 — y cómo se cierra">
+        El tramo que le queda al {PLAN_LABEL[plan]}
+      </SecHead>
+      {brecha.lectura && <p className="pv-brecha-lectura">{brecha.lectura}</p>}
+      {brecha.modulos.length > 0 && (
+        <div className="pv-brecha-grid">
+          {brecha.modulos.map((m, i) => (
+            <div className="pv-brecha-card" key={i}>
+              <div className="pv-brecha-mod">{m.modulo}</div>
+              <div className="pv-brecha-accion">{m.accion}</div>
+            </div>
+          ))}
+        </div>
       )}
     </section>
   );

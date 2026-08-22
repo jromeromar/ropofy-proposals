@@ -8,7 +8,14 @@
  */
 
 import { useMemo, useState } from "react";
-import type { Proposal, AsIsCifra, Fuga, Componente } from "@/lib/types";
+import type {
+  Proposal,
+  AsIsCifra,
+  AsIsFila,
+  AsIsGestionFila,
+  Fuga,
+  Componente,
+} from "@/lib/types";
 import { bandFromJourney, BAND_ORDER, type BandName } from "@/lib/mapLayout";
 import { guardarContenido } from "./actions";
 
@@ -82,8 +89,12 @@ export default function EditForm({
   function normalizado(): Proposal {
     const out = clone(p);
     // Drop empty as_is figures so a blank cifra becomes a plain [canal, nota].
+    const asIs = out.as_is as Record<AsIsColKey, Array<AsIsFila | AsIsGestionFila>>;
     for (const col of Object.keys(AS_IS_TITULOS) as AsIsColKey[]) {
-      out.as_is[col] = out.as_is[col].map((fila) => {
+      asIs[col] = asIs[col].map((fila): AsIsFila | AsIsGestionFila => {
+        // Hierarchical middle-axis rows ({ quien, … }) are passed through
+        // untouched — this legacy screen only edits the flat tuple rows.
+        if (!Array.isArray(fila)) return fila;
         const extra = fila[2] as AsIsCifra | undefined;
         const cifra = extra?.cifra == null ? "" : String(extra.cifra).trim();
         if (!cifra) return [fila[0], fila[1]];
@@ -169,8 +180,15 @@ export default function EditForm({
         <h2>Resumen</h2>
         <Campo label="Resumen del negocio">
           <textarea
-            value={p.resumen}
-            onChange={(e) => edit((d) => (d.resumen = e.target.value))}
+            value={typeof p.resumen === "string" ? p.resumen : p.resumen.parrafo}
+            onChange={(e) =>
+              edit((d) => {
+                d.resumen =
+                  typeof d.resumen === "string"
+                    ? e.target.value
+                    : { ...d.resumen, parrafo: e.target.value };
+              })
+            }
           />
         </Campo>
       </section>
@@ -182,6 +200,8 @@ export default function EditForm({
           <div key={col} className="ed-subsec">
             <h3>{AS_IS_TITULOS[col]}</h3>
             {p.as_is[col].map((fila, i) => {
+              // Skip hierarchical middle-axis rows here (edited in the pipeline).
+              if (!Array.isArray(fila)) return null;
               const extra = fila[2] as AsIsCifra | undefined;
               return (
                 <div key={i} className="ed-asis-row">
@@ -189,14 +209,22 @@ export default function EditForm({
                     <input
                       type="text"
                       value={fila[0]}
-                      onChange={(e) => edit((d) => (d.as_is[col][i][0] = e.target.value))}
+                      onChange={(e) =>
+                        edit((d) => {
+                          (d.as_is[col][i] as [string, string])[0] = e.target.value;
+                        })
+                      }
                     />
                   </Campo>
                   <Campo label="Nota">
                     <input
                       type="text"
                       value={fila[1]}
-                      onChange={(e) => edit((d) => (d.as_is[col][i][1] = e.target.value))}
+                      onChange={(e) =>
+                        edit((d) => {
+                          (d.as_is[col][i] as [string, string])[1] = e.target.value;
+                        })
+                      }
                     />
                   </Campo>
                   <Campo label="Cifra">

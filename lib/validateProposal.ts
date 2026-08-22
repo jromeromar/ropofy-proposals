@@ -178,6 +178,54 @@ function isAsIsFila(v: unknown): boolean {
   return true;
 }
 
+/**
+ * `resumen` accepts the legacy string OR the new { parrafo, bullets? } object.
+ * A string must be non-empty; an object must carry a non-empty `parrafo` and,
+ * if present, `bullets` must be an array of strings.
+ */
+function checkResumen(v: unknown, errors: string[]): void {
+  if (isString(v)) {
+    checkTexto(v, "resumen", errors);
+    return;
+  }
+  if (isPlainObject(v)) {
+    checkTexto(v.parrafo, "resumen.parrafo", errors);
+    if (!isAbsent(v.bullets)) {
+      if (!Array.isArray(v.bullets)) {
+        errors.push(
+          `El bloque «resumen.bullets» debe ser un arreglo de textos y llegó ${tipoEs(v.bullets)}.`,
+        );
+      } else {
+        v.bullets.forEach((b, i) => {
+          if (!isString(b))
+            errors.push(
+              `El elemento «resumen.bullets[${i}]» debe ser texto y llegó ${tipoEs(b)}.`,
+            );
+        });
+      }
+    }
+    return;
+  }
+  errors.push(
+    `El bloque «resumen» debe ser texto o un objeto { parrafo, bullets? } y llegó ${tipoEs(v)} (${muestra(v)}).`,
+  );
+}
+
+/**
+ * The middle axis may arrive hierarchically as { quien, nota?, detalle?[] }.
+ * `quien` is required; `nota` optional text; `detalle` optional string array.
+ */
+function isGestionFila(v: unknown): boolean {
+  if (!isPlainObject(v)) return false;
+  if (!isString(v.quien) || v.quien.trim() === "") return false;
+  if ("nota" in v && v.nota != null && !isString(v.nota)) return false;
+  if ("detalle" in v && v.detalle != null) {
+    if (!Array.isArray(v.detalle)) return false;
+    if (!v.detalle.every((d) => isString(d))) return false;
+  }
+  return true;
+}
+
 // --- main ---------------------------------------------------------------
 
 export function validateProposal(input: unknown): ValidationResult {
@@ -193,7 +241,7 @@ export function validateProposal(input: unknown): ValidationResult {
 
   checkTexto(p.cliente, "cliente", errors);
   checkTexto(p.titular, "titular", errors);
-  checkTexto(p.resumen, "resumen", errors);
+  checkResumen(p.resumen, errors);
   checkEnum(p.modo, "modo", ["A", "B"], errors);
 
   validateAsIs(p.as_is, errors);
@@ -233,11 +281,16 @@ function validateAsIs(asIs: unknown, errors: string[]): void {
       errors.push(`El bloque «as_is.${col}» debe ser un arreglo y llegó ${tipoEs(val)}.`);
       continue;
     }
+    // The middle axis also accepts the hierarchical { quien, nota?, detalle?[] }.
+    const permiteGestion = col === "por_donde_pasan";
     val.forEach((fila, i) => {
-      if (!isAsIsFila(fila))
-        errors.push(
-          `El elemento «as_is.${col}[${i}]» debe ser [etiqueta, nota] de textos, con un tercer elemento opcional { cifra, unidad? } (llegó ${muestra(fila)}).`,
-        );
+      if (isAsIsFila(fila)) return;
+      if (permiteGestion && isGestionFila(fila)) return;
+      errors.push(
+        permiteGestion
+          ? `El elemento «as_is.${col}[${i}]» debe ser [etiqueta, nota] de textos (tercer elemento opcional { cifra, unidad? }) o { quien, nota?, detalle?[] } (llegó ${muestra(fila)}).`
+          : `El elemento «as_is.${col}[${i}]» debe ser [etiqueta, nota] de textos, con un tercer elemento opcional { cifra, unidad? } (llegó ${muestra(fila)}).`,
+      );
     });
   }
 }

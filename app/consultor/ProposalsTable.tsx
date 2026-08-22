@@ -28,6 +28,15 @@ interface VersionFila {
   aceptada: boolean;
 }
 
+/** A leak confirmation/correction recorded during a presentation (C10). */
+interface NotaFila {
+  at: string;
+  autor: string;
+  fugaTitulo: string;
+  confirmada: boolean | null;
+  nota: string | null;
+}
+
 export interface FilaPropuesta {
   id: string;
   cliente: string;
@@ -40,6 +49,8 @@ export interface FilaPropuesta {
   token: string | null;
   archivado: boolean;
   versiones: VersionFila[];
+  /** Leak confirmations/corrections recorded during presentations. */
+  notas: NotaFila[];
 }
 
 const ESTADOS: EstadoPropuesta[] = [
@@ -130,9 +141,22 @@ export default function ProposalsTable({
   const activas = useMemo(() => filas.filter((f) => !f.archivado), [filas]);
   const kpi = useMemo(() => {
     const aceptadas = activas.filter((f) => f.estado === "aceptada");
+    // "Enviado" = every proposal that reached a client (has a sent version, so
+    // estado is not "borrador"). "Aceptado" = only the accepted ones. Kept
+    // explicitly apart: this panel settles commissions, so the labels can't be
+    // ambiguous. G23 note — "Pagadas" (invoiced/paid) is deliberately NOT here:
+    // it needs billing integration and is parked in the backlog.
+    const enviadasList = activas.filter(
+      (f) => f.estado !== "borrador" && f.valor != null,
+    );
+    const moneda =
+      enviadasList.find((f) => f.moneda)?.moneda ??
+      aceptadas.find((f) => f.moneda)?.moneda ??
+      "USD";
     return {
+      valorEnviado: enviadasList.reduce((a, f) => a + (f.valor ?? 0), 0),
       valorAceptado: aceptadas.reduce((a, f) => a + (f.valor ?? 0), 0),
-      moneda: aceptadas.find((f) => f.moneda)?.moneda ?? "USD",
+      moneda,
       aceptadas: aceptadas.length,
       enviadas: activas.filter((f) => f.estado === "enviada").length,
       vencidas: activas.filter((f) => f.estado === "vencida").length,
@@ -205,8 +229,12 @@ export default function ProposalsTable({
 
       <div className="pr-kpis">
         <div className="pr-kpi">
+          <div className="pr-kpi-val">{formatPrice(kpi.valorEnviado, kpi.moneda)}</div>
+          <div className="pr-kpi-lbl">Valor enviado</div>
+        </div>
+        <div className="pr-kpi">
           <div className="pr-kpi-val">{formatPrice(kpi.valorAceptado, kpi.moneda)}</div>
-          <div className="pr-kpi-lbl">Aceptado</div>
+          <div className="pr-kpi-lbl">Valor aceptado</div>
         </div>
         <div className="pr-kpi">
           <div className="pr-kpi-val">{kpi.aceptadas}</div>
@@ -325,6 +353,8 @@ export default function ProposalsTable({
               {visibles.map((f) => {
                 const abierta = abiertas.has(f.id);
                 const nv = f.versiones.length;
+                const nn = f.notas.length;
+                const expandible = nv > 0 || nn > 0;
                 return (
                   <Fragment key={f.id}>
                     <tr>
@@ -348,13 +378,17 @@ export default function ProposalsTable({
                         </span>
                       </td>
                       <td>
-                        {nv > 0 ? (
+                        {expandible ? (
                           <button
                             type="button"
                             className="pr-verv"
                             onClick={() => toggleAbierta(f.id)}
                           >
-                            {nv} {nv === 1 ? "versión" : "versiones"} {abierta ? "▲" : "▼"}
+                            {nv > 0
+                              ? `${nv} ${nv === 1 ? "versión" : "versiones"}`
+                              : "sin enviar"}
+                            {nn > 0 && ` · ${nn} nota${nn === 1 ? "" : "s"}`}{" "}
+                            {abierta ? "▲" : "▼"}
                           </button>
                         ) : (
                           <span className="pr-sub">sin enviar</span>
@@ -400,29 +434,52 @@ export default function ProposalsTable({
                         </div>
                       </td>
                     </tr>
-                    {abierta && nv > 0 && (
+                    {abierta && expandible && (
                       <tr className="pr-vrow">
                         <td colSpan={7}>
-                          <div className="pr-versiones">
-                            {f.versiones.map((v) => (
-                              <div className="pr-vitem" key={v.token}>
-                                <span className="pr-vtag">
-                                  {v.version}
-                                  {v.aceptada && <span className="pr-vok"> · aceptada</span>}
-                                </span>
-                                <span>{PLAN_LABEL[v.plan]}</span>
-                                <span>{formatPrice(v.valor, v.moneda)}</span>
-                                <span className="pr-sub">{fmtFecha(v.sentAt)}</span>
-                                <span className="pr-sub">
-                                  {v.vigencia ? `vence ${fmtFecha(v.vigencia)}` : "sin vigencia"}
-                                </span>
-                                <a href={`/p/${v.token}`} target="_blank" rel="noreferrer">
-                                  /p/…{v.token.slice(-6)}
-                                </a>
-                                <CopyLink path={`/p/${v.token}`} />
+                          {nv > 0 && (
+                            <div className="pr-versiones">
+                              {f.versiones.map((v) => (
+                                <div className="pr-vitem" key={v.token}>
+                                  <span className="pr-vtag">
+                                    {v.version}
+                                    {v.aceptada && <span className="pr-vok"> · aceptada</span>}
+                                  </span>
+                                  <span>{PLAN_LABEL[v.plan]}</span>
+                                  <span>{formatPrice(v.valor, v.moneda)}</span>
+                                  <span className="pr-sub">{fmtFecha(v.sentAt)}</span>
+                                  <span className="pr-sub">
+                                    {v.vigencia ? `vence ${fmtFecha(v.vigencia)}` : "sin vigencia"}
+                                  </span>
+                                  <a href={`/p/${v.token}`} target="_blank" rel="noreferrer">
+                                    /p/…{v.token.slice(-6)}
+                                  </a>
+                                  <CopyLink path={`/p/${v.token}`} />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {nn > 0 && (
+                            <div className="pr-notas">
+                              <div className="pr-notas-head">
+                                Notas de la presentación
                               </div>
-                            ))}
-                          </div>
+                              {f.notas.map((n, i) => (
+                                <div className="pr-nota" key={i}>
+                                  {n.confirmada === true && (
+                                    <span className="pr-nota-ok">✓ confirmada</span>
+                                  )}
+                                  <span className="pr-nota-fuga">{n.fugaTitulo}</span>
+                                  {n.nota && (
+                                    <span className="pr-nota-texto">“{n.nota}”</span>
+                                  )}
+                                  <span className="pr-sub">
+                                    {n.autor} · {fmtFecha(n.at)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )}

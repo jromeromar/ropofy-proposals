@@ -50,15 +50,28 @@ describe("presentación — contenido prohibido", () => {
 });
 
 describe("presentación — contenido esperado", () => {
-  it("renderiza la fuga dominante, badges de integración y no_aplican", () => {
+  it("renderiza la fuga dominante y los badges de integración", () => {
     const text = visibleText(render(2));
     expect(text).toContain("El volumen desbordó al equipo"); // fuga dominante
     expect(text).toContain("Incluido");
     expect(text).toContain("Consumo variable");
     expect(text).toContain("Requiere su licencia");
     expect(text).toContain("Se cotiza aparte");
-    expect(text).toContain("Pago en línea del anticipo"); // no_aplican
     expect(text).toContain("Su asistente de IA — uno solo, con habilidades");
+  });
+
+  it("E18: no dibuja «lo que no se dibuja» (no_aplican) en el lienzo", () => {
+    // no_aplican moved off the client-facing canvas to the consultant's
+    // internal Checklist drawer; without the checklist prop it appears nowhere.
+    const text = visibleText(render(2));
+    expect(text).not.toContain("Pago en línea del anticipo");
+    expect(text).not.toContain("No se dibujan en su plano");
+  });
+
+  it("C7: agrupa las fugas en bloques (fugas, cegueras, restricciones)", () => {
+    const text = visibleText(render(2));
+    expect(text).toContain("Las cegueras");
+    expect(text).toContain("Las restricciones");
   });
 
   it("aplica el gating por plan: en Fundamental lo superior queda bloqueado", () => {

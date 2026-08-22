@@ -28,6 +28,14 @@ export default async function ConsultorHome() {
       vigencia: last ? last.condicion.vigencia : null,
       token: last ? last.token : null,
       archivado: Boolean(p.archivado),
+      // Leak confirmations/corrections recorded during presentations (C10).
+      notas: (p.notasFugas ?? []).map((n) => ({
+        at: n.at,
+        autor: n.autor,
+        fugaTitulo: n.fugaTitulo,
+        confirmada: n.confirmada,
+        nota: n.nota,
+      })),
       // Slim, client-safe per-version list (no internal `motivo`).
       versiones: p.sentVersions.map((v) => ({
         version: v.version,

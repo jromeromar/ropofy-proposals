@@ -15,14 +15,17 @@ import {
   bandFromJourney,
   type BandName,
 } from "./mapLayout";
+import { fraseDePlan, benchmarkFuente, bloqueDeCategoria } from "./lienzo";
 import { razonSocialDe } from "./identidad";
 import type {
   Proposal,
   AsIs,
   EstadoFuga,
+  CategoriaFuga,
   LetraNota,
   PlanNombre,
   EtiquetaIntegracion,
+  BrechaFueraDeAlcance,
 } from "./types";
 
 /** One row of the feature inventory (every component, included or removed). */
@@ -51,6 +54,10 @@ export interface CompVM {
    */
   idx: number;
   nombre: string;
+  /** One-line synthesis (E15); shown on the card, not the full detail. */
+  sintesis: string | null;
+  /** Client-language names this capability feeds into (E16 engranaje). */
+  conectaCon: string[];
   plan: PlanNombre;
   instancias: number;
   cuota: string | null;
@@ -68,6 +75,13 @@ export interface FugaVM {
   idx: number;
   titulo: string;
   estado: EstadoFuga;
+  /** Block this card belongs to (C7). Absent in the contract ⇒ "fuga". */
+  categoria: CategoriaFuga;
+  dominante: boolean;
+  /** Headline figure (cuantificacion.valor), for the card. */
+  valor: string;
+  /** Verbatim client quote (shown smaller than the title, C8). */
+  evidencia: string | null;
   dependeDeTercero: boolean;
 }
 
@@ -81,18 +95,25 @@ export interface PresentacionVM {
   cliente: string;
   titular: string;
   asIs: AsIs;
+  /** Every leak, in order; grouped by `categoria` in the view (C7). */
+  fugas: FugaVM[];
   fugaDominante: { idx: number; titulo: string; valor: string } | null;
   fugasResto: FugaVM[];
   nota: { letra: LetraNota; puntos: number };
   /** Sector average maturity per module (0-4), or null. */
   benchmarkModulos: Record<string, number> | null;
+  /** Human label for the benchmark source (D12); null when unsafe/absent. */
+  benchmarkFuente: string | null;
   bands: BandVM[];
   integraciones: Array<[string, string, EtiquetaIntegracion]>;
-  noAplican: Array<[string, string]>;
   madurez: MadurezVM[];
   /** Every feature (included AND removed), for the inventory drawer. */
   inventario: InventarioItem[];
   planRecomendado: 1 | 2 | 3;
+  /** Personalised one-liner per plan (E14); null ⇒ use the built-in default. */
+  planFrases: { "1": string | null; "2": string | null; "3": string | null };
+  /** Raw gap-to-100 contract block (F20); resolved per plan in the view. */
+  brechaFuera: BrechaFueraDeAlcance | null;
   moneda: string;
   precioPorPlan: { "1": number; "2": number; "3": number };
 }
@@ -117,20 +138,14 @@ export function toPresentacionVM(proposal: Proposal): PresentacionVM {
   }));
 
   const dominanteIdx = proposal.fugas.findIndex((f) => f.dominante === true);
-  const fugasResto: FugaVM[] = proposal.fugas
-    .map((f, idx) => ({ f, idx }))
-    .filter(({ f }) => f.dominante !== true)
-    .map(({ f, idx }) => ({
-      idx,
-      titulo: f.titulo,
-      estado: f.estado,
-      dependeDeTercero: Boolean(f.depende_de_tercero),
-    }));
+  const fugas: FugaVM[] = proposal.fugas.map((f, idx) => toFugaVM(f, idx));
+  const fugasResto = fugas.filter((f) => !f.dominante);
 
   return {
     cliente: razonSocialDe(proposal),
     titular: proposal.titular,
     asIs: proposal.as_is,
+    fugas,
     fugaDominante:
       dominanteIdx >= 0
         ? {
@@ -144,9 +159,9 @@ export function toPresentacionVM(proposal: Proposal): PresentacionVM {
     benchmarkModulos: benchmarkPorModulo(
       (proposal as { benchmark?: unknown }).benchmark,
     ),
+    benchmarkFuente: benchmarkFuenteTexto(proposal),
     bands,
     integraciones: proposal.integraciones,
-    noAplican: proposal.no_aplican,
     madurez: proposal.madurez.map((m) => ({ m: m.m, hoy: m.hoy, p: m.p })),
     inventario: Object.values(proposal.componentes).map((c, idx) => ({
       idx,
@@ -157,9 +172,37 @@ export function toPresentacionVM(proposal: Proposal): PresentacionVM {
       incluido: c.incluido !== false,
     })),
     planRecomendado: proposal.plan_recomendado.plan,
+    planFrases: {
+      "1": fraseDePlan(proposal.planes, 1),
+      "2": fraseDePlan(proposal.planes, 2),
+      "3": fraseDePlan(proposal.planes, 3),
+    },
+    brechaFuera: proposal.brecha_fuera_de_alcance ?? null,
     moneda: proposal.condicion_comercial.moneda,
     precioPorPlan: proposal.condicion_comercial.precio_por_plan,
   };
+}
+
+function toFugaVM(f: Proposal["fugas"][number], idx: number): FugaVM {
+  const dep = f.depende_de_tercero;
+  return {
+    idx,
+    titulo: f.titulo,
+    estado: f.estado,
+    categoria: bloqueDeCategoria(f.categoria),
+    dominante: f.dominante === true,
+    valor: f.cuantificacion?.valor != null ? String(f.cuantificacion.valor) : "",
+    evidencia:
+      typeof f.evidencia_textual === "string" && f.evidencia_textual.trim() !== ""
+        ? f.evidencia_textual
+        : null,
+    dependeDeTercero: Boolean(dep),
+  };
+}
+
+/** Benchmark source label for the presentation (D12); null when unsafe. */
+function benchmarkFuenteTexto(proposal: Proposal): string | null {
+  return benchmarkFuente((proposal as { benchmark?: unknown }).benchmark).texto;
 }
 
 function toCompVM(
@@ -172,6 +215,13 @@ function toCompVM(
     idx,
     cortesiaPlan: comp.cortesiaPlan ?? null,
     nombre: comp.nombre_cliente,
+    sintesis:
+      typeof comp.sintesis === "string" && comp.sintesis.trim() !== ""
+        ? comp.sintesis
+        : null,
+    conectaCon: Array.isArray(comp.conecta_con)
+      ? comp.conecta_con.filter((x): x is string => typeof x === "string")
+      : [],
     plan: comp.plan,
     instancias: comp.instancias,
     cuota: comp.cuota ?? null,
