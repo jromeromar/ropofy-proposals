@@ -38,6 +38,7 @@ export default async function PresentacionPage({
       vm={toPresentacionVM(stored.data)}
       marca={stored.marca ?? null}
       checklist={checklistConsultor(stored.data)}
+      notasFugas={stored.notasFugas ?? []}
     />
   );
 }

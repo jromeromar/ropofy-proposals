@@ -22,6 +22,7 @@ import type {
   AppliedCondition,
   ClientDocument,
   Acceptance,
+  NotaFuga,
 } from "./types";
 
 /** What the send flow supplies; storage assigns version, sentAt and token. */
@@ -55,6 +56,11 @@ export interface ProposalStorage {
     id: string,
     estado: "rechazada" | null,
   ): Promise<StoredProposal>;
+  /**
+   * Append a leak confirmation/correction note recorded during the
+   * presentation (C10). Append-only: existing notes are never overwritten.
+   */
+  appendNotaFuga(id: string, nota: NotaFuga): Promise<StoredProposal>;
   /**
    * Replace the head proposal data IN PLACE — a live content correction (fix a
    * typo, a wrong figure). Keeps the version tag and the immutable sent-version
@@ -274,6 +280,16 @@ class MemoryFileStorage implements ProposalStorage {
     return existing;
   }
 
+  async appendNotaFuga(id: string, nota: NotaFuga): Promise<StoredProposal> {
+    await this.load();
+    const existing = this.map.get(id);
+    if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
+    existing.notasFugas = [...(existing.notasFugas ?? []), nota];
+    this.map.set(id, existing);
+    await this.persist();
+    return existing;
+  }
+
   async getProposal(id: string): Promise<StoredProposal | null> {
     await this.load();
     return this.map.get(id) ?? null;
@@ -454,6 +470,14 @@ class KvStorage implements ProposalStorage {
     return existing;
   }
 
+  async appendNotaFuga(id: string, nota: NotaFuga): Promise<StoredProposal> {
+    const existing = await this.getProposal(id);
+    if (!existing) throw new Error(`Propuesta no encontrada: ${id}`);
+    existing.notasFugas = [...(existing.notasFugas ?? []), nota];
+    await this.redis.set(kvKey(id), existing);
+    return existing;
+  }
+
   async getProposal(id: string): Promise<StoredProposal | null> {
     return (await this.redis.get<StoredProposal>(kvKey(id))) ?? null;
   }
@@ -571,6 +595,7 @@ export const storage: ProposalStorage = {
   setMarca: (id, marca) => getStorage().setMarca(id, marca),
   setArchivado: (id, archivado) => getStorage().setArchivado(id, archivado),
   setEstadoManual: (id, estado) => getStorage().setEstadoManual(id, estado),
+  appendNotaFuga: (id, nota) => getStorage().appendNotaFuga(id, nota),
   updateProposalData: (id, data) => getStorage().updateProposalData(id, data),
   getProposal: (id) => getStorage().getProposal(id),
   listProposals: () => getStorage().listProposals(),

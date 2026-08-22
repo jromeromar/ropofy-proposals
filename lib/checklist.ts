@@ -7,6 +7,7 @@
 
 import type { Proposal } from "./types";
 import { razonSocialDe } from "./identidad";
+import { benchmarkFuente } from "./lienzo";
 
 export interface ChecklistConsultor {
   /** Brand-spelling status, e.g. "confirmada" / "por confirmar". */
@@ -18,6 +19,18 @@ export interface ChecklistConsultor {
   silencios: Array<{ modulo: string; lectura: string }>;
   /** Data still missing — the agenda for the next call. */
   datosQueFaltan: string[];
+  /** Session stamps (A3): shown internally, never on the client canvas. */
+  sesiones: string[];
+  /** Estimated kickoff window (A3): internal only. */
+  ventana: string | null;
+  /** "Lo que no se dibuja" (E18): moved off the client canvas to here. */
+  noAplican: Array<[string, string]>;
+  /**
+   * True when `benchmark.fuente` carried digits (a sample size) — a pipeline
+   * error to flag, since the sample size must never be shown to the client
+   * (D12).
+   */
+  benchmarkFuenteConDigitos: boolean;
   modo: string | null;
 }
 
@@ -27,6 +40,10 @@ export function checklistTieneContenido(c: ChecklistConsultor): boolean {
     c.nombresPorConfirmar.length > 0 ||
     c.silencios.length > 0 ||
     c.datosQueFaltan.length > 0 ||
+    c.noAplican.length > 0 ||
+    c.sesiones.length > 0 ||
+    c.ventana != null ||
+    c.benchmarkFuenteConDigitos ||
     c.grafiaEstado != null
   );
 }
@@ -61,12 +78,31 @@ export function checklistConsultor(data: Proposal): ChecklistConsultor {
     ? (raw.datos_que_faltan as unknown[]).map((x) => String(x))
     : [];
 
+  const sesiones = Array.isArray(raw.sesiones)
+    ? (raw.sesiones as unknown[]).map((x) => String(x)).filter((s) => s !== "")
+    : [];
+
+  const ventana =
+    typeof raw.ventana === "string" && raw.ventana.trim() !== ""
+      ? raw.ventana
+      : null;
+
+  const noAplican = Array.isArray(raw.no_aplican)
+    ? (raw.no_aplican as unknown[])
+        .filter((x): x is unknown[] => Array.isArray(x) && x.length >= 2)
+        .map((x) => [String(x[0]), String(x[1])] as [string, string])
+    : [];
+
   return {
     grafiaEstado,
     razonSocial: razonSocialDe(data),
     nombresPorConfirmar,
     silencios,
     datosQueFaltan,
+    sesiones,
+    ventana,
+    noAplican,
+    benchmarkFuenteConDigitos: benchmarkFuente(raw.benchmark).tieneDigitos,
     modo: typeof raw.modo === "string" ? raw.modo : null,
   };
 }

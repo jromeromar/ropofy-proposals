@@ -10,7 +10,7 @@
 
 import { validateProposal } from "@/lib/validateProposal";
 import { storage } from "@/lib/storage";
-import type { Proposal, PlanNombre } from "@/lib/types";
+import type { NotaFuga, Proposal, PlanNombre } from "@/lib/types";
 
 export type EdicionInline =
   | { campo: "titular" | "cliente" | "marca"; valor: string }
@@ -84,4 +84,49 @@ export async function guardarInline(input: {
   await storage.updateProposalData(input.id, data);
   if (marca !== undefined) await storage.setMarca(input.id, marca);
   return { ok: true };
+}
+
+/**
+ * Record a leak confirmation and/or correction note during the presentation
+ * (C10). Append-only and attributable: the note is stamped with the signed-in
+ * consultant and the current time, and appended to the proposal's registry —
+ * the original leak card in `data` is never overwritten. This is Atlas working
+ * data, so it lives on the storage envelope, not inside `data`.
+ */
+export async function registrarNotaFuga(input: {
+  id: string;
+  fugaIdx: number;
+  confirmada: boolean | null;
+  nota: string | null;
+}): Promise<
+  { ok: true; nota: NotaFuga } | { ok: false; errors: string[] }
+> {
+  const stored = await storage.getProposal(input.id);
+  if (!stored) {
+    return { ok: false, errors: ["La propuesta no existe o fue eliminada."] };
+  }
+  const fuga = stored.data.fugas?.[input.fugaIdx];
+  if (!fuga) {
+    return { ok: false, errors: ["La fuga indicada no existe."] };
+  }
+  const notaTexto = input.nota?.trim() || null;
+  if (input.confirmada == null && !notaTexto) {
+    return { ok: false, errors: ["No hay nada que registrar."] };
+  }
+
+  // Imported lazily so the (next-auth) module graph is only pulled in when this
+  // action actually runs on the server — keeps it out of unit-test bundles.
+  const { auth } = await import("@/auth");
+  const session = await auth();
+  const autor = session?.user?.email ?? session?.user?.name ?? "consultor";
+  const nota: NotaFuga = {
+    at: new Date().toISOString(),
+    autor,
+    fugaIdx: input.fugaIdx,
+    fugaTitulo: fuga.titulo,
+    confirmada: input.confirmada,
+    nota: notaTexto,
+  };
+  await storage.appendNotaFuga(input.id, nota);
+  return { ok: true, nota };
 }

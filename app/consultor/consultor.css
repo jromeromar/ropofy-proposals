@@ -11,7 +11,9 @@
 }
 @media (min-width: 760px) {
   .pr-kpis {
-    grid-template-columns: repeat(4, 1fr);
+    /* Wrap gracefully — the money tiles (enviado/aceptado) plus counts can be
+       more than four; auto-fit keeps them tidy on any width. */
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 }
 .pr-kpi {
@@ -322,4 +324,41 @@
 .pr-archivar:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/* C10 — registro de notas de la presentación en la fila expandida */
+.pr-notas {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+.pr-notas-head {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+.pr-nota {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  padding: 6px 10px;
+  background: #fff;
+  border: 1px solid var(--color-primary-tinte2);
+  border-radius: 10px;
+}
+.pr-nota-ok {
+  font-weight: 800;
+  color: #047857;
+}
+.pr-nota-fuga {
+  font-weight: 700;
+  color: var(--color-primary-dark);
+}
+.pr-nota-texto {
+  font-style: italic;
+  color: var(--color-ink);
 }

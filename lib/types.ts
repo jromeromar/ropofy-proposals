@@ -12,6 +12,12 @@ export type PlanNombre = "fundamental" | "avanzado" | "inteligente";
 export type Visibilidad = "front" | "back" | "ambos";
 export type EstadoFuga = "activa" | "mitigable" | "fuera_de_alcance";
 export type LetraNota = "A" | "B" | "C" | "D" | "E" | "F";
+/**
+ * Category of a leak-card. Groups the section into three visually distinct
+ * blocks. Absent = "fuga" (backward compatible), so older files degrade into
+ * the leaks block.
+ */
+export type CategoriaFuga = "fuga" | "ceguera" | "restriccion";
 export type EtiquetaIntegracion =
   | "incluido"
   | "consumo_variable"
@@ -43,17 +49,73 @@ export interface AsIsCifra {
  */
 export type AsIsFila = [string, string] | [string, string, AsIsCifra];
 
+/**
+ * The middle axis ("cómo se gestiona") in its hierarchical form: the role is
+ * the primary item and `detalle` are subordinate sub-items — never rendered at
+ * the same level as the role. Optional; a plain [canal, nota] tuple still works
+ * (older files degrade to a flat item).
+ */
+export interface AsIsGestionFila {
+  quien: string;
+  nota?: string;
+  detalle?: string[];
+}
+
 export interface AsIs {
   de_donde_llegan: AsIsFila[];
-  por_donde_pasan: AsIsFila[];
+  /** Accepts the flat tuple form OR the hierarchical {quien, nota, detalle[]}. */
+  por_donde_pasan: Array<AsIsFila | AsIsGestionFila>;
   donde_queda: AsIsFila[];
 }
+
+/**
+ * The executive summary. The pipeline is moving from a single string to a
+ * split {parrafo, bullets} so the renderer can show a short paragraph plus a
+ * few bullets. A plain string still works (degrades to just the paragraph).
+ */
+export interface ResumenObjeto {
+  parrafo: string;
+  bullets?: string[];
+}
+export type Resumen = string | ResumenObjeto;
+
+/** One plan's personalised one-liner, read from the pipeline (E14). */
+export interface PlanFrase {
+  /** 1|2|3 or the plan name; when absent, position (index+1) is used. */
+  plan?: 1 | 2 | 3;
+  nivel?: PlanNombre;
+  frase?: string;
+}
+
+/** A concrete gap the client closes outside the CRM, for one module (F20). */
+export interface BrechaModulo {
+  modulo: string;
+  accion: string;
+}
+/** The gap-to-100 reading for one plan: a global read + per-module actions. */
+export interface BrechaPlan {
+  /** Global reading: how many points remain and why (roadmap tone). */
+  lectura: string;
+  modulos: BrechaModulo[];
+}
+/**
+ * `brecha_fuera_de_alcance`: either keyed by plan (reactive: null for a plan
+ * means it reaches 100 → the section hides) or a single flat reading used for
+ * every plan. The renderer NEVER computes the gap; the pipeline decides.
+ */
+export type BrechaFueraDeAlcance =
+  | BrechaPlan
+  | { "1"?: BrechaPlan | null; "2"?: BrechaPlan | null; "3"?: BrechaPlan | null };
 
 export interface Fuga {
   id: string;
   titulo: string;
   estado: EstadoFuga;
   dominante?: boolean;
+  /**
+   * Which of the three blocks this card belongs to (C7). Absent = "fuga".
+   */
+  categoria?: CategoriaFuga;
   cuantificacion: { valor: number | string };
   /** Required when estado === "mitigable". */
   depende_de_tercero?: boolean;
@@ -85,6 +147,17 @@ export interface Componente {
   cuota?: string | null;
   /** Optional benefit/description shown beneath the name in the client doc. */
   beneficio?: string;
+  /**
+   * One-line synthesis of the component (E15). The full spec is NOT drawn on
+   * the canvas — it is raised in the specifications session. When present, the
+   * canvas shows this single line (falling back to `beneficio`).
+   */
+  sintesis?: string;
+  /**
+   * Client-language names of the capabilities this one feeds into (E16), used
+   * to draw the "engranaje" connectors behind a toggle. Optional.
+   */
+  conecta_con?: string[];
   /**
    * Whether this feature is shown in the plano. Absent/true = shown; false =
    * removed by the consultant but KEPT in the data (recoverable from the
@@ -121,10 +194,14 @@ export interface PlanRecomendado {
 export interface Proposal {
   cliente: string;
   titular: string;
-  resumen: string;
+  resumen: Resumen;
   modo: Modo;
   as_is: AsIs;
   fugas: Fuga[];
+  /** Personalised plan one-liners (E14); optional, falls back to defaults. */
+  planes?: PlanFrase[];
+  /** Gap-to-100 reading (F20); optional, section hidden when absent. */
+  brecha_fuera_de_alcance?: BrechaFueraDeAlcance;
   madurez: Madurez[];
   nota: Nota;
   componentes: Record<string, Componente>;
@@ -236,6 +313,29 @@ export interface SentVersion {
   expiredEmitted: boolean;
 }
 
+/**
+ * A note the consultant records against a leak-card DURING the presentation
+ * (C10): a confirmation ("sí, así nos pasa") and/or a correction the client
+ * volunteered. Append-only and attributable — the original card is never
+ * overwritten; these accrue as a log visible in the proposal's registry.
+ * This is Atlas working data, NOT part of the propuesta.json contract, so it
+ * lives on the storage envelope, never inside `data`.
+ */
+export interface NotaFuga {
+  /** ISO timestamp when recorded. */
+  at: string;
+  /** Who recorded it (the signed-in consultant, or "consultor" if unknown). */
+  autor: string;
+  /** Positional index of the leak in `data.fugas` (stable addressing). */
+  fugaIdx: number;
+  /** The leak's title at the time, so the registry reads without lookup. */
+  fugaTitulo: string;
+  /** Whether the client confirmed the leak ("sí, así nos pasa"). */
+  confirmada: boolean | null;
+  /** A correction/matiz the client volunteered, or null. */
+  nota: string | null;
+}
+
 /** A proposal as persisted by the storage layer. */
 export interface StoredProposal {
   id: string;
@@ -256,6 +356,8 @@ export interface StoredProposal {
   archivado?: boolean;
   /** Manual status override; only "rechazada" (declined) is set by hand. */
   estadoManual?: "rechazada" | null;
+  /** Append-only log of the consultant's leak confirmations/corrections (C10). */
+  notasFugas?: NotaFuga[];
   data: Proposal;
   /** Immutable sent versions, oldest first. */
   sentVersions: SentVersion[];

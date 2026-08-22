@@ -83,6 +83,14 @@ export function buildClientDocument(
   delete doc._fixture;
   delete doc._contrato;
 
+  // Consultant-only, never on the client canvas (A3, E18): the session date,
+  // the estimated kickoff window and "lo que no se dibuja". They stay in the
+  // stored proposal `data` for the internal panel, but leave the snapshot so
+  // they never travel to the client.
+  delete doc.sesiones;
+  delete doc.ventana;
+  delete doc.no_aplican;
+
   // Commercial internals: keep only moneda + list prices; drop the machinery.
   const cc = doc.condicion_comercial as Record<string, unknown> | undefined;
   if (cc) {
@@ -105,6 +113,8 @@ export function buildClientDocument(
     safe[`c${n}`] = {
       nombre_cliente: comp.nombre_cliente,
       beneficio: comp.beneficio ?? null,
+      sintesis: comp.sintesis ?? null,
+      conecta_con: Array.isArray(comp.conecta_con) ? comp.conecta_con : [],
       plan: comp.plan,
       cortesiaPlan: comp.cortesiaPlan ?? null,
       vis: comp.vis,
@@ -121,6 +131,7 @@ export function buildClientDocument(
   doc.fugas = fugas.map((f) => ({
     titulo: f.titulo,
     estado: f.estado,
+    categoria: f.categoria ?? null,
     dominante: Boolean(f.dominante),
     cuantificacion: f.cuantificacion,
     depende_de_tercero: f.depende_de_tercero ?? null,
