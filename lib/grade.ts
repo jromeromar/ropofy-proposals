@@ -60,3 +60,15 @@ export function gradeForPlan(madurez: MadurezLike[], plan: PlanNumero): GradeRes
   const puntos = puntosForPlan(madurez, plan);
   return { puntos, letra: gradeFromPuntos(puntos) };
 }
+
+/**
+ * Today's note (score + letter) derived from `madurez`. Used only as a FALLBACK
+ * when the pipeline omits the top-level `nota` — it applies the same
+ * sum-over-28 normalisation the pipeline uses (verified to match), and the same
+ * one the renderer already uses for the projected grade. Prefer the contract's
+ * `nota` when present.
+ */
+export function notaHoy(madurez: MadurezLike[]): GradeResult {
+  const puntos = puntosHoy(madurez);
+  return { puntos, letra: gradeFromPuntos(puntos) };
+}

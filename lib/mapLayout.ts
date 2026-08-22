@@ -135,8 +135,16 @@ export function benchmarkPorModulo(
   benchmark: unknown,
 ): Record<string, number> | null {
   if (typeof benchmark !== "object" || benchmark === null) return null;
+  // Newer builds nest the per-module map under `por_modulo` (alongside
+  // `fuente`); older ones put the numbers directly on the object. Read the
+  // nested map when present, else the top-level numbers.
+  const nested = (benchmark as { por_modulo?: unknown }).por_modulo;
+  const source =
+    nested && typeof nested === "object" && !Array.isArray(nested)
+      ? (nested as Record<string, unknown>)
+      : (benchmark as Record<string, unknown>);
   const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(benchmark)) {
+  for (const [k, v] of Object.entries(source)) {
     if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
   }
   return Object.keys(out).length > 0 ? out : null;

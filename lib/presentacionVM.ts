@@ -16,6 +16,7 @@ import {
   type BandName,
 } from "./mapLayout";
 import { fraseDePlan, benchmarkFuente, bloqueDeCategoria } from "./lienzo";
+import { notaHoy } from "./grade";
 import { razonSocialDe } from "./identidad";
 import type {
   Proposal,
@@ -155,7 +156,11 @@ export function toPresentacionVM(proposal: Proposal): PresentacionVM {
           }
         : null,
     fugasResto,
-    nota: { letra: proposal.nota.letra, puntos: proposal.nota.puntos },
+    // `nota` optional in newer builds — derive from `madurez` when absent.
+    nota:
+      proposal.nota && proposal.nota.letra != null && proposal.nota.puntos != null
+        ? { letra: proposal.nota.letra, puntos: proposal.nota.puntos }
+        : notaHoy(proposal.madurez),
     benchmarkModulos: benchmarkPorModulo(
       (proposal as { benchmark?: unknown }).benchmark,
     ),

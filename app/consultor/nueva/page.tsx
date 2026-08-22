@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { validateProposal } from "@/lib/validateProposal";
 import { formatPrice } from "@/lib/rules";
+import { notaHoy } from "@/lib/grade";
 import type { Proposal, StoredProposal, PlanNombre } from "@/lib/types";
 
 interface Summary {
@@ -398,7 +399,11 @@ function SummaryCard({ summary }: { summary: Summary }) {
           <div className="summary-cell">
             <div className="k">Nota</div>
             <div className="v">
-              {proposal.nota.letra} · {proposal.nota.puntos}/100
+              {(() => {
+                // `nota` is optional in newer builds; derive from `madurez`.
+                const n = proposal.nota ?? notaHoy(proposal.madurez);
+                return `${n.letra} · ${n.puntos}/100`;
+              })()}
             </div>
           </div>
           <div className="summary-cell">
